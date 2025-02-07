@@ -1,2 +1,1 @@
-- fastify で、VRCX.sqlite3 を読んでその中身を返すサーバーを立てる
-- 
+# vrcx-web-server
