@@ -36,6 +36,7 @@ const app = createApp({
         },
       ],
       items: [],
+      loadingItems: [],
       types: {
         gps: 'GPS',
         status: 'Status',
@@ -60,7 +61,7 @@ const app = createApp({
   },
   methods: {
     async fetchAll(page, limit) {
-      this.items = []
+      this.loadingItems = []
       await Promise.all([
         this.fetchGpsFeed(page, limit),
         this.fetchStatusFeed(page, limit),
@@ -68,7 +69,7 @@ const app = createApp({
         this.fetchAvatarFeed(page, limit),
         this.fetchOnlineOfflineFeed(page, limit),
       ]).then(() => {
-        this.items.sort((a, b) => {
+        this.items = this.loadingItems.toSorted((a, b) => {
           return b.created_at - a.created_at
         })
       })
@@ -93,7 +94,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.items.push({
+        this.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -114,7 +115,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.items.push({
+        this.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -135,7 +136,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.items.push({
+        this.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -156,7 +157,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.items.push({
+        this.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -177,7 +178,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.items.push({
+        this.loadingItems.push({
           id: `${item.type}-${item.id}`,
           created_at: new Date(item.created_at),
           type: item.type.toLowerCase(),
