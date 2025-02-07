@@ -100,7 +100,7 @@ export class ApiRouter extends BaseRouter {
   ) {
     return database
       .prepare(
-        `SELECT * FROM ${tableName} LIMIT ${limit} OFFSET ${(page - 1) * limit}`
+        `SELECT * FROM ${tableName} ORDER BY rowid DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`
       )
       .all()
   }

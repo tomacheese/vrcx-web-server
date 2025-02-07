@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>vrcx-web-server</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css"
+      rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/vuetify@3.7.11/dist/vuetify.min.css" />
+  </head>
+  <body>
+    <div id="app">
+      <v-data-table
+        v-model:expanded="expanded"
+        :headers="headers"
+        :items="items"
+        :items-per-page="100"
+        item-value="id"
+        density="compact"
+        show-expand>
+        <template v-slot:item.type="{ item }">
+          {{ types[item.type] }}
+        </template>
+        <template v-slot:item.created_at="{ item }">
+          {{ formatDate(item.created_at) }}
+        </template>
+        <template v-slot:expanded-row="{ columns, item }">
+          <tr>
+            <td :colspan="columns.length"><pre>{{ item }}</pre></td>
+          </tr>
+        </template>
+      </v-data-table>
+    </div>
+    <script src="https://unpkg.com/vue"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@3.7.11/dist/vuetify.min.js"></script>
+    <script async src="script.js"></script>
+  </body>
+</html>
