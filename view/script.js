@@ -13,9 +13,8 @@ const app = createApp({
   data() {
     return {
       apiBaseUrl: undefined,
+      tab: 1,
       userId: '',
-      loading: false,
-      expanded: [],
       headers: [
         { title: '', key: 'data-table-expand' },
         {
@@ -35,15 +34,38 @@ const app = createApp({
           key: 'details',
         },
       ],
-      items: [],
-      loadingItems: [],
-      types: {
-        gps: 'GPS',
-        status: 'Status',
-        bio: 'Bio',
-        avatar: 'Avatar',
-        online: 'Online',
-        offline: 'Offline',
+      feed: {
+        expanded: [],
+        items: [],
+        loadingItems: [],
+        selectTypes: ['gps', 'status', 'bio', 'avatar', 'online', 'offline'],
+        types: {
+          gps: 'GPS',
+          status: 'Status',
+          bio: 'Bio',
+          avatar: 'Avatar',
+          online: 'Online',
+          offline: 'Offline',
+        },
+      },
+      gamelog: {
+        expanded: [],
+        items: [],
+        loadingItems: [],
+        selectTypes: [
+          'location',
+          'onplayerjoined',
+          'onplayerleft',
+          'video_play',
+          'event',
+        ],
+        types: {
+          location: 'Location',
+          onplayerjoined: 'OnPlayerJoined',
+          onplayerleft: 'OnPlayerLeft',
+          video_play: 'Video Play',
+          event: 'Event',
+        },
       },
     }
   },
@@ -53,27 +75,32 @@ const app = createApp({
     }
 
     await this.fetchUserId()
-    await this.fetchAll(1, 1000)
+    this.fetchRecords(1, 1000)
 
     setInterval(() => {
-      this.fetchAll(1, 1000)
+      this.fetchRecords(1, 1000)
     }, 1000 * 10)
   },
-  methods: {
-    async fetchAll(page, limit) {
-      this.loadingItems = []
-      await Promise.all([
-        this.fetchGpsFeed(page, limit),
-        this.fetchStatusFeed(page, limit),
-        this.fetchBioFeed(page, limit),
-        this.fetchAvatarFeed(page, limit),
-        this.fetchOnlineOfflineFeed(page, limit),
-      ]).then(() => {
-        this.items = this.loadingItems.toSorted((a, b) => {
-          return b.created_at - a.created_at
-        })
-      })
+  watch: {
+    tab() {
+      console.log('tab', this.tab)
+      this.fetchRecords(1, 1000)
     },
+  },
+  computed: {
+    filteredItems() {
+      if (this.tab === 1) {
+        return this.feed.items.filter((item) => {
+          return this.feed.selectTypes.includes(item.type)
+        })
+      } else if (this.tab === 2) {
+        return this.gamelog.items.filter((item) => {
+          return this.gamelog.selectTypes.includes(item.type)
+        })
+      }
+    },
+  },
+  methods: {
     async fetchUserId() {
       const url = new URL('/api/configs', this.apiBaseUrl)
       const response = await fetch(url)
@@ -82,6 +109,28 @@ const app = createApp({
       const key = 'config:lastuserloggedin'
       const config = data.find((item) => item.key === key)
       this.userId = config.value
+    },
+    async fetchRecords(page, limit) {
+      if (this.tab === 1) {
+        this.fetchAllFeed(page, limit)
+      } else if (this.tab === 2) {
+        this.fetchAllGameLog(page, limit)
+      }
+    },
+    async fetchAllFeed(page, limit) {
+      this.feed.loadingItems = []
+      await Promise.all([
+        this.fetchGpsFeed(page, limit),
+        this.fetchStatusFeed(page, limit),
+        this.fetchBioFeed(page, limit),
+        this.fetchAvatarFeed(page, limit),
+        this.fetchOnlineOfflineFeed(page, limit),
+      ]).then(() => {
+        this.feed.loadingItems.sort((a, b) => {
+          return b.created_at - a.created_at
+        })
+        this.feed.items = this.feed.loadingItems
+      })
     },
     async fetchGpsFeed(page, limit) {
       const type = 'gps'
@@ -94,7 +143,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.loadingItems.push({
+        this.feed.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -115,7 +164,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.loadingItems.push({
+        this.feed.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -136,7 +185,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.loadingItems.push({
+        this.feed.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -157,7 +206,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.loadingItems.push({
+        this.feed.loadingItems.push({
           id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
@@ -178,7 +227,7 @@ const app = createApp({
 
       const items = await response.json()
       for (const item of items) {
-        this.loadingItems.push({
+        this.feed.loadingItems.push({
           id: `${item.type}-${item.id}`,
           created_at: new Date(item.created_at),
           type: item.type.toLowerCase(),
@@ -188,6 +237,103 @@ const app = createApp({
         })
       }
     },
+    async fetchAllGameLog(page, limit) {
+      this.gamelog.loadingItems = []
+      await Promise.all([
+        this.fetchLocationLog(page, limit),
+        this.fetchJoinLeaveLog(page, limit),
+        this.fetchVideoPlayLog(page, limit),
+        this.fetchEventLog(page, limit),
+      ]).then(() => {
+        this.gamelog.loadingItems.sort((a, b) => {
+          return b.created_at - a.created_at
+        })
+        this.gamelog.items = this.gamelog.loadingItems
+      })
+    },
+    async fetchLocationLog(page, limit) {
+      const type = 'location'
+      const path = `/api/gamelog_${type}`
+      const url = new URL(path, this.apiBaseUrl)
+      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('page', page || 1)
+      const response = await fetch(url)
+
+      const items = await response.json()
+      for (const item of items) {
+        this.gamelog.loadingItems.push({
+          id: `${item.type}-${item.id}`,
+          created_at: new Date(item.created_at),
+          type,
+          display_name: '',
+          details: item.world_name,
+          data: item,
+        })
+      }
+    },
+    async fetchJoinLeaveLog(page, limit) {
+      const type = 'join_leave'
+      const path = `/api/gamelog_${type}`
+      const url = new URL(path, this.apiBaseUrl)
+      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('page', page || 1)
+      const response = await fetch(url)
+
+      const items = await response.json()
+      for (const item of items) {
+        this.gamelog.loadingItems.push({
+          id: `${item.type}-${item.id}`,
+          created_at: new Date(item.created_at),
+          type: item.type.toLowerCase(),
+          display_name: item.display_name,
+          details: '',
+          data: item,
+        })
+      }
+    },
+    // fetchPortalSpawnLog: ログみたことがなくてわからない
+    async fetchVideoPlayLog(page, limit) {
+      const type = 'video_play'
+      const path = `/api/gamelog_${type}`
+      const url = new URL(path, this.apiBaseUrl)
+      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('page', page || 1)
+      const response = await fetch(url)
+
+      const items = await response.json()
+      for (const item of items) {
+        this.gamelog.loadingItems.push({
+          id: `${item.type}-${item.id}`,
+          created_at: new Date(item.created_at),
+          type,
+          display_name: item.display_name,
+          details: item.video_name,
+          data: item,
+        })
+      }
+    },
+    // fetchResourceLoadLog: ログみたことがなくてわからない
+    async fetchEventLog(page, limit) {
+      const type = 'event'
+      const path = `/api/gamelog_${type}`
+      const url = new URL(path, this.apiBaseUrl)
+      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('page', page || 1)
+      const response = await fetch(url)
+
+      const items = await response.json()
+      for (const item of items) {
+        this.gamelog.loadingItems.push({
+          id: `${item.type}-${item.id}`,
+          created_at: new Date(item.created_at),
+          type,
+          display_name: '',
+          details: item.data,
+          data: item,
+        })
+      }
+    },
+    // fetchExternalLog: ログみたことがなくてわからない
     formatDate(date) {
       return date.toLocaleString('ja-JP', {
         timeZone: 'Asia/Tokyo',
