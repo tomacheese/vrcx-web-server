@@ -38,6 +38,7 @@ const app = createApp({
         expanded: [],
         items: [],
         loadingItems: [],
+        search: '',
         selectTypes: ['gps', 'status', 'bio', 'avatar', 'online', 'offline'],
         types: {
           gps: 'GPS',
@@ -52,6 +53,7 @@ const app = createApp({
         expanded: [],
         items: [],
         loadingItems: [],
+        search: '',
         selectTypes: [
           'location',
           'onplayerjoined',
@@ -90,13 +92,43 @@ const app = createApp({
   computed: {
     filteredItems() {
       if (this.tab === 1) {
-        return this.feed.items.filter((item) => {
-          return this.feed.selectTypes.includes(item.type)
-        })
+        return this.feed.items
+          .filter((item) => {
+            return this.feed.selectTypes.includes(item.type)
+          })
+          .filter((item) => {
+            return [
+              item.display_name,
+              item.details,
+              this.getWorldName(item.data),
+              item.data.status_description,
+              item.data.status,
+              item.data.bio,
+              item.data.avatar_name,
+            ]
+              .join(' ')
+              .toLowerCase()
+              .includes(this.feed.search.toLowerCase())
+          })
       } else if (this.tab === 2) {
-        return this.gamelog.items.filter((item) => {
-          return this.gamelog.selectTypes.includes(item.type)
-        })
+        return this.gamelog.items
+          .filter((item) => {
+            return this.gamelog.selectTypes.includes(item.type)
+          })
+          .filter((item) => {
+            return [
+              item.display_name,
+              item.details,
+              this.getWorldName(item.data),
+              item.data.status_description,
+              item.data.status,
+              item.data.bio,
+              item.data.avatar_name,
+            ]
+              .join(' ')
+              .toLowerCase()
+              .includes(this.gamelog.search.toLowerCase())
+          })
       }
     },
   },
@@ -148,7 +180,7 @@ const app = createApp({
           created_at: new Date(item.created_at),
           type,
           display_name: item.display_name,
-          details: item.world_name,
+          details: this.getWorldName(item),
           data: item,
         })
       }
@@ -232,7 +264,7 @@ const app = createApp({
           created_at: new Date(item.created_at),
           type: item.type.toLowerCase(),
           display_name: item.display_name,
-          details: item.world_name,
+          details: this.getWorldName(item),
           data: item,
         })
       }
@@ -262,11 +294,11 @@ const app = createApp({
       const items = await response.json()
       for (const item of items) {
         this.gamelog.loadingItems.push({
-          id: `${item.type}-${item.id}`,
+          id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
           display_name: '',
-          details: item.world_name,
+          details: this.getWorldName(item),
           data: item,
         })
       }
@@ -303,7 +335,7 @@ const app = createApp({
       const items = await response.json()
       for (const item of items) {
         this.gamelog.loadingItems.push({
-          id: `${item.type}-${item.id}`,
+          id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
           display_name: item.display_name,
@@ -324,7 +356,7 @@ const app = createApp({
       const items = await response.json()
       for (const item of items) {
         this.gamelog.loadingItems.push({
-          id: `${item.type}-${item.id}`,
+          id: `${type}-${item.id}`,
           created_at: new Date(item.created_at),
           type,
           display_name: '',
@@ -334,6 +366,15 @@ const app = createApp({
       }
     },
     // fetchExternalLog: ログみたことがなくてわからない
+    getWorldName(item) {
+      if (item.world_name) {
+        return item.world_name
+      } else if (item.location === 'private') {
+        return 'Private'
+      } else {
+        return 'Unknown'
+      }
+    },
     formatDate(date) {
       return date.toLocaleString('ja-JP', {
         timeZone: 'Asia/Tokyo',
