@@ -39,7 +39,7 @@
     "@types/diff": "7.0.1",
     "@types/jest": "29.5.14",
     "@types/node": "22.13.0",
-    "@vercel/node": "5.1.0",
+    "@vercel/node": "5.1.2",
     "axios": "1.7.9",
     "better-sqlite3": "11.8.1",
     "diff": "7.0.0",
