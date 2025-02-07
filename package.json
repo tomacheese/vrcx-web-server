@@ -2,16 +2,16 @@
   "name": "vrcx-web-server",
   "version": "1.0.0",
   "description": "",
-  "homepage": "https://github.com/book000/vrcx-web-server",
+  "homepage": "https://github.com/tomacheese/vrcx-web-server",
   "bugs": {
-    "url": "https://github.com/book000/vrcx-web-server/issues"
+    "url": "https://github.com/tomacheese/vrcx-web-server/issues"
   },
   "license": "MIT",
   "author": "Tomachi <tomachi@tomacheese.com>",
   "private": true,
   "main": "index.js",
   "repository": {
-    "url": "git@github.com:book000/vrcx-web-server.git",
+    "url": "git@github.com:tomacheese/vrcx-web-server.git",
     "type": "git"
   },
   "scripts": {

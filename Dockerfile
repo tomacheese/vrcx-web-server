@@ -20,12 +20,11 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 
 COPY package.json tsconfig.json ./
 COPY src src
+COPY view view
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --offline
 
 ENV NODE_ENV=production
 ENV API_PORT=80
-
-VOLUME [ "/data" ]
 
 ENTRYPOINT [ "pnpm", "start" ]
