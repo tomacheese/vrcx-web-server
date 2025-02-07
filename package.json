@@ -22,7 +22,6 @@
     "lint:tsc": "tsc",
     "fix:eslint": "eslint . -c eslint.config.mjs --fix",
     "fix:prettier": "prettier --write src",
-    "test": "jest --runInBand --passWithNoTests --detectOpenHandles --forceExit",
     "preinstall": "npx only-allow pnpm",
     "lint": "run-z lint:prettier,lint:eslint,lint:tsc",
     "lint:eslint": "eslint . -c eslint.config.mjs",
