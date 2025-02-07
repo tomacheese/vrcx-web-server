@@ -26,6 +26,10 @@
             multiple
             label="Type"
             dense></v-select>
+          <v-text-field
+            v-model="feed.search"
+            label="Search"
+            dense></v-text-field>
           <v-data-table
             v-model:expanded="feed.expanded"
             :headers="headers"
@@ -55,6 +59,10 @@
             multiple
             label="Type"
             dense></v-select>
+          <v-text-field
+            v-model="gamelog.search"
+            label="Search"
+            dense></v-text-field>
           <v-data-table
             v-model:expanded="gamelog.expanded"
             :headers="headers"
