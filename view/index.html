@@ -13,26 +13,70 @@
   </head>
   <body>
     <div id="app">
-      <v-data-table
-        v-model:expanded="expanded"
-        :headers="headers"
-        :items="items"
-        :items-per-page="100"
-        item-value="id"
-        density="compact"
-        show-expand>
-        <template v-slot:item.type="{ item }">
-          {{ types[item.type] }}
-        </template>
-        <template v-slot:item.created_at="{ item }">
-          {{ formatDate(item.created_at) }}
-        </template>
-        <template v-slot:expanded-row="{ columns, item }">
-          <tr>
-            <td :colspan="columns.length"><pre>{{ item }}</pre></td>
-          </tr>
-        </template>
-      </v-data-table>
+      <v-tabs v-model="tab" align-tabs="center">
+        <v-tab :value="1">Feed</v-tab>
+        <v-tab :value="2">Game Log</v-tab>
+      </v-tabs>
+
+      <v-tabs-window v-model="tab">
+        <v-tabs-window-item :value="1">
+          <v-select
+            v-model="feed.selectTypes"
+            :items="Object.keys(feed.types)"
+            multiple
+            label="Type"
+            dense></v-select>
+          <v-data-table
+            v-model:expanded="feed.expanded"
+            :headers="headers"
+            :items="filteredItems"
+            :items-per-page="100"
+            item-value="id"
+            density="compact"
+            show-expand>
+            <template v-slot:item.type="{ item }">
+              {{ feed.types[item.type] }}
+            </template>
+            <template v-slot:item.created_at="{ item }">
+              {{ formatDate(item.created_at) }}
+            </template>
+            <template v-slot:expanded-row="{ columns, item }">
+              <tr>
+                <td :colspan="columns.length"><pre>{{ item }}</pre></td>
+              </tr>
+            </template>
+          </v-data-table>
+        </v-tabs-window-item>
+
+        <v-tabs-window-item :value="2">
+          <v-select
+            v-model="gamelog.selectTypes"
+            :items="Object.keys(gamelog.types)"
+            multiple
+            label="Type"
+            dense></v-select>
+          <v-data-table
+            v-model:expanded="gamelog.expanded"
+            :headers="headers"
+            :items="filteredItems"
+            :items-per-page="100"
+            item-value="id"
+            density="compact"
+            show-expand>
+            <template v-slot:item.type="{ item }">
+              {{ gamelog.types[item.type] }}
+            </template>
+            <template v-slot:item.created_at="{ item }">
+              {{ formatDate(item.created_at) }}
+            </template>
+            <template v-slot:expanded-row="{ columns, item }">
+              <tr>
+                <td :colspan="columns.length"><pre>{{ item }}</pre></td>
+              </tr>
+            </template>
+          </v-data-table>
+        </v-tabs-window-item>
+      </v-tabs-window>
     </div>
     <script src="https://unpkg.com/vue"></script>
     <script src="https://cdn.jsdelivr.net/npm/vuetify@3.7.11/dist/vuetify.min.js"></script>
