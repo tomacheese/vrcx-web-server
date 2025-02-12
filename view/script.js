@@ -371,6 +371,8 @@ const app = createApp({
         return item.world_name
       } else if (item.location === 'private') {
         return 'Private'
+      } else if (item.location === 'traveling') {
+        return 'Traveling'
       } else {
         return 'Unknown'
       }
