@@ -25,7 +25,8 @@ COPY src src
 COPY view view
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --offline && \
-  pnpm approve-builds
+  pnpm approve-builds && \
+  pnpm rebuild
 
 ENV NODE_ENV=production
 ENV API_PORT=80
