@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@book000/eslint-config": "1.8.13",
-    "@book000/node-utils": "1.14.3",
+    "@book000/node-utils": "1.14.4",
     "@fastify/cors": "10.1.0",
     "@types/better-sqlite3": "7.6.12",
     "@types/node": "22.13.5",
