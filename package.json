@@ -32,7 +32,7 @@
     "@book000/node-utils": "1.18.20",
     "@fastify/cors": "11.0.1",
     "@types/better-sqlite3": "7.6.13",
-    "@types/node": "22.15.31",
+    "@types/node": "22.15.32",
     "better-sqlite3": "11.10.0",
     "eslint": "9.29.0",
     "eslint-config-standard": "17.1.0",
