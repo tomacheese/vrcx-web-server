@@ -1,4 +1,4 @@
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-floating-promises, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unsafe-return, @typescript-eslint/require-await */
 import { BaseRouter } from './index'
 import { Logger } from '@book000/node-utils'
 import { ENV } from '../environments'
@@ -143,8 +143,8 @@ export class WebSocketRouter extends BaseRouter {
         return
       }
 
-      const lastModTime = this.lastModifiedTimes.get(path)!
-      if (currentModTime > lastModTime) {
+      const lastModTime = this.lastModifiedTimes.get(path)
+      if (lastModTime && currentModTime > lastModTime) {
         this.logger.info('Database change detected, broadcasting updates')
         this.lastModifiedTimes.set(path, currentModTime)
         await this.broadcastUpdates()
@@ -224,23 +224,23 @@ export class WebSocketRouter extends BaseRouter {
             let displayType = type
 
             switch (type) {
-            case 'status': {
-              details = `${record.status_description} (${record.status})`
-            
-            break;
-            }
-            case 'online_offline': {
-              details = this.getWorldName(record)
-              displayType = record.type?.toLowerCase() || type
-            
-            break;
-            }
-            case 'gps': {
-              details = this.getWorldName(record)
-            
-            break;
-            }
-            // No default
+              case 'status': {
+                details = `${record.status_description} (${record.status})`
+
+                break
+              }
+              case 'online_offline': {
+                details = this.getWorldName(record)
+                displayType = record.type?.toLowerCase() || type
+
+                break
+              }
+              case 'gps': {
+                details = this.getWorldName(record)
+
+                break
+              }
+              // No default
             }
 
             feedData.push({
@@ -298,23 +298,23 @@ export class WebSocketRouter extends BaseRouter {
             let id = `${type}-${record.id}`
 
             switch (type) {
-            case 'location': {
-              details = this.getWorldName(record)
-            
-            break;
-            }
-            case 'join_leave': {
-              displayType = record.type?.toLowerCase() || type
-              id = `${record.type}-${record.id}`
-            
-            break;
-            }
-            case 'video_play': {
-              details = record.video_name || ''
-            
-            break;
-            }
-            // No default
+              case 'location': {
+                details = this.getWorldName(record)
+
+                break
+              }
+              case 'join_leave': {
+                displayType = record.type?.toLowerCase() || type
+                id = `${record.type}-${record.id}`
+
+                break
+              }
+              case 'video_play': {
+                details = record.video_name || ''
+
+                break
+              }
+              // No default
             }
 
             gamelogData.push({

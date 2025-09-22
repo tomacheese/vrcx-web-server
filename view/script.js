@@ -15,7 +15,7 @@ const app = createApp({
       apiBaseUrl: undefined,
       tab: 1,
       userId: '',
-      websocket: null,
+      websocket: undefined,
       websocketConnected: false,
       reconnectAttempts: 0,
       maxReconnectAttempts: 5,
@@ -168,14 +168,14 @@ const app = createApp({
         }
       })
 
-      this.websocket.onmessage = (event) => {
+      this.websocket.addEventListener('message', (event) => {
         try {
           const data = JSON.parse(event.data)
           this.handleWebSocketMessage(data)
         } catch (error) {
           console.error('Error parsing WebSocket message:', error)
         }
-      }
+      })
 
       this.websocket.addEventListener('close', () => {
         console.log('WebSocket disconnected')
@@ -183,10 +183,10 @@ const app = createApp({
         this.attemptReconnect()
       })
 
-      this.websocket.onerror = (error) => {
+      this.websocket.addEventListener('error', (error) => {
         console.error('WebSocket error:', error)
         this.websocketConnected = false
-      }
+      })
     },
     handleWebSocketMessage(data) {
       switch (data.type) {
