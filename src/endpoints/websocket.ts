@@ -1,9 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-floating-promises, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unsafe-return, @typescript-eslint/require-await */
 import { BaseRouter } from './index'
 import { Logger } from '@book000/node-utils'
 import { ENV } from '../environments'
 import DatabaseConstructor from 'better-sqlite3'
 import fs from 'node:fs'
+
+// @types/ws is required for @fastify/websocket types even though not directly imported
+// This prevents TypeScript error: Could not find a declaration file for module 'ws'
 
 interface WebSocketMessage {
   type: 'subscribe' | 'unsubscribe' | 'ping'
@@ -19,22 +21,29 @@ interface DataRecord {
   type: string
   display_name: string
   details: string
-  data: any
+  data: unknown
+}
+
+// Type for WebSocket connection from @fastify/websocket
+interface FastifyWebSocketConnection {
+  send: (data: string) => void
+  on: (event: string, handler: (...args: unknown[]) => void) => void
+  close: () => void
 }
 
 export class WebSocketRouter extends BaseRouter {
   private logger = Logger.configure('WebSocketRouter')
-  private clients = new Set<any>()
+  private clients = new Set<FastifyWebSocketConnection>()
   private lastModifiedTimes = new Map<string, number>()
-  private watchInterval: NodeJS.Timeout | null = null
+  private watchInterval: NodeJS.Timeout | undefined
 
   async init(): Promise<void> {
     this.logger.info('Initializing WebSocket router')
 
     await this.fastify.register(
-      async (fastify) => {
+      (fastify) => {
         fastify.get('/ws', { websocket: true }, (connection) => {
-          this.handleConnection(connection)
+          this.handleConnection(connection as FastifyWebSocketConnection)
         })
       },
       { prefix: '/api' }
@@ -44,11 +53,12 @@ export class WebSocketRouter extends BaseRouter {
     this.startDatabaseMonitoring()
   }
 
-  private handleConnection(connection: any): void {
+  private handleConnection(connection: FastifyWebSocketConnection): void {
     this.logger.info('WebSocket client connected')
     this.clients.add(connection)
 
-    connection.on('message', (message: Buffer) => {
+    connection.on('message', (...args: unknown[]) => {
+      const message = args[0] as Buffer
       try {
         const data: WebSocketMessage = JSON.parse(message.toString())
         this.handleMessage(connection, data)
@@ -62,16 +72,22 @@ export class WebSocketRouter extends BaseRouter {
       this.clients.delete(connection)
     })
 
-    connection.on('error', (error: Error) => {
+    connection.on('error', (...args: unknown[]) => {
+      const error = args[0] as Error
       this.logger.error('WebSocket error:', error)
       this.clients.delete(connection)
     })
 
     // Send initial data
-    this.sendInitialData(connection)
+    this.sendInitialData(connection).catch((error: unknown) => {
+      this.logger.error('Error sending initial data:', error as Error)
+    })
   }
 
-  private handleMessage(connection: any, message: WebSocketMessage): void {
+  private handleMessage(
+    connection: FastifyWebSocketConnection,
+    message: WebSocketMessage
+  ): void {
     switch (message.type) {
       case 'ping': {
         connection.send(JSON.stringify({ type: 'pong' }))
@@ -93,29 +109,37 @@ export class WebSocketRouter extends BaseRouter {
     }
   }
 
-  private async sendInitialData(connection: any): Promise<void> {
-    try {
-      const feedData = await this.getFeedData()
-      const gamelogData = await this.getGamelogData()
+  private sendInitialData(
+    connection: FastifyWebSocketConnection
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      try {
+        const feedData = this.getFeedData()
+        const gamelogData = this.getGamelogData()
 
-      connection.send(
-        JSON.stringify({
-          type: 'initial_data',
-          data: {
-            feed: feedData,
-            gamelog: gamelogData,
-          },
-        })
-      )
-    } catch (error) {
-      this.logger.error('Error sending initial data:', error as Error)
-    }
+        connection.send(
+          JSON.stringify({
+            type: 'initial_data',
+            data: {
+              feed: feedData,
+              gamelog: gamelogData,
+            },
+          })
+        )
+        resolve()
+      } catch (error) {
+        this.logger.error('Error sending initial data:', error as Error)
+        resolve()
+      }
+    })
   }
 
   private startDatabaseMonitoring(): void {
     // Check for database changes every 2 seconds
     this.watchInterval = setInterval(() => {
-      this.checkForDatabaseChanges()
+      this.checkForDatabaseChanges().catch((error: unknown) => {
+        this.logger.error('Error checking database changes:', error as Error)
+      })
     }, 2000)
 
     this.logger.info('Started database monitoring')
@@ -154,34 +178,38 @@ export class WebSocketRouter extends BaseRouter {
     }
   }
 
-  private async broadcastUpdates(): Promise<void> {
-    try {
-      const feedData = await this.getFeedData()
-      const gamelogData = await this.getGamelogData()
+  private broadcastUpdates(): Promise<void> {
+    return new Promise((resolve) => {
+      try {
+        const feedData = this.getFeedData()
+        const gamelogData = this.getGamelogData()
 
-      const message = JSON.stringify({
-        type: 'data_update',
-        data: {
-          feed: feedData,
-          gamelog: gamelogData,
-        },
-      })
+        const message = JSON.stringify({
+          type: 'data_update',
+          data: {
+            feed: feedData,
+            gamelog: gamelogData,
+          },
+        })
 
-      // Broadcast to all connected clients
-      for (const client of this.clients) {
-        try {
-          client.send(message)
-        } catch (error) {
-          this.logger.error('Error sending to client:', error as Error)
-          this.clients.delete(client)
+        // Broadcast to all connected clients
+        for (const client of this.clients) {
+          try {
+            client.send(message)
+          } catch (error) {
+            this.logger.error('Error sending to client:', error as Error)
+            this.clients.delete(client)
+          }
         }
+        resolve()
+      } catch (error) {
+        this.logger.error('Error broadcasting updates:', error as Error)
+        resolve()
       }
-    } catch (error) {
-      this.logger.error('Error broadcasting updates:', error as Error)
-    }
+    })
   }
 
-  private async getFeedData(): Promise<DataRecord[]> {
+  private getFeedData(): DataRecord[] {
     const username = process.env.USERNAME
     const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
     const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
@@ -202,7 +230,7 @@ export class WebSocketRouter extends BaseRouter {
         return []
       }
 
-      const userId = (configRecords[0] as any).value
+      const userId = (configRecords[0] as { value: string }).value
       const pathUserId = userId.replaceAll(/[_-]/g, '')
 
       const feedData: DataRecord[] = []
@@ -219,35 +247,38 @@ export class WebSocketRouter extends BaseRouter {
             )
             .all()
 
-          for (const record of records as any[]) {
+          for (const record of records) {
+            const recordData = record as {
+              id: string
+              created_at: string
+              display_name?: string
+              status_description?: string
+              status?: string
+              type?: string
+              world_name?: string
+            }
+
             let details = ''
             let displayType = type
 
-            switch (type) {
-              case 'status': {
-                details = `${record.status_description} (${record.status})`
-
-                break
-              }
-              case 'online_offline': {
-                details = this.getWorldName(record)
-                displayType = record.type?.toLowerCase() || type
-
-                break
-              }
-              case 'gps': {
-                details = this.getWorldName(record)
-
-                break
-              }
-              // No default
+            if (
+              type === 'status' &&
+              recordData.status_description &&
+              recordData.status
+            ) {
+              details = `${recordData.status_description} (${recordData.status})`
+            } else if (type === 'online_offline') {
+              details = this.getWorldName(record)
+              displayType = recordData.type?.toLowerCase() ?? type
+            } else if (type === 'gps') {
+              details = this.getWorldName(record)
             }
 
             feedData.push({
-              id: `${type}-${record.id}`,
-              created_at: record.created_at,
+              id: `${type}-${recordData.id}`,
+              created_at: recordData.created_at,
               type: displayType,
-              display_name: record.display_name || '',
+              display_name: recordData.display_name ?? '',
               details,
               data: record,
             })
@@ -266,7 +297,7 @@ export class WebSocketRouter extends BaseRouter {
     }
   }
 
-  private async getGamelogData(): Promise<DataRecord[]> {
+  private getGamelogData(): DataRecord[] {
     const username = process.env.USERNAME
     const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
     const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
@@ -292,36 +323,40 @@ export class WebSocketRouter extends BaseRouter {
             )
             .all()
 
-          for (const record of records as any[]) {
+          for (const record of records) {
+            const recordData = record as {
+              id: string
+              created_at: string
+              display_name?: string
+              type?: string
+              video_name?: string
+            }
+
             let details = ''
             let displayType = type
-            let id = `${type}-${record.id}`
+            let id = `${type}-${recordData.id}`
 
             switch (type) {
               case 'location': {
                 details = this.getWorldName(record)
-
                 break
               }
               case 'join_leave': {
-                displayType = record.type?.toLowerCase() || type
-                id = `${record.type}-${record.id}`
-
+                displayType = recordData.type?.toLowerCase() ?? type
+                id = `${recordData.type ?? type}-${recordData.id}`
                 break
               }
               case 'video_play': {
-                details = record.video_name || ''
-
+                details = recordData.video_name ?? ''
                 break
               }
-              // No default
             }
 
             gamelogData.push({
               id,
-              created_at: record.created_at,
+              created_at: recordData.created_at,
               type: displayType,
-              display_name: record.display_name || '',
+              display_name: recordData.display_name ?? '',
               details,
               data: record,
             })
@@ -340,8 +375,9 @@ export class WebSocketRouter extends BaseRouter {
     }
   }
 
-  private getWorldName(item: any): string {
-    const worldName = item.world_name
+  private getWorldName(item: unknown): string {
+    const itemData = item as { world_name?: string }
+    const worldName = itemData.world_name
     if (!worldName) {
       return ''
     }
@@ -354,10 +390,10 @@ export class WebSocketRouter extends BaseRouter {
     return worldName
   }
 
-  async destroy(): Promise<void> {
+  destroy(): void {
     if (this.watchInterval) {
       clearInterval(this.watchInterval)
-      this.watchInterval = null
+      this.watchInterval = undefined
     }
 
     // Close all WebSocket connections

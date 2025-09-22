@@ -82,7 +82,12 @@ const app = createApp({
     }
 
     await this.fetchUserId()
+    
+    // Initialize WebSocket for real-time updates
     this.initWebSocket()
+    
+    // Fetch initial data immediately 
+    this.fetchRecords(1, 1000)
   },
   watch: {
     tab() {
