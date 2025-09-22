@@ -18,6 +18,19 @@
         <v-tab :value="2">Game Log</v-tab>
       </v-tabs>
 
+      <!-- WebSocket Connection Status -->
+      <v-alert 
+        :type="websocketConnected ? 'success' : 'warning'" 
+        dense 
+        text 
+        style="margin: 8px 16px;">
+        <v-icon :icon="websocketConnected ? 'mdi-wifi' : 'mdi-wifi-off'" class="mr-2"></v-icon>
+        {{ websocketConnected ? 'リアルタイム接続中' : 'リアルタイム接続が切断されています' }}
+        <span v-if="!websocketConnected && reconnectAttempts > 0">
+          (再接続試行中: {{ reconnectAttempts }}/{{ maxReconnectAttempts }})
+        </span>
+      </v-alert>
+
       <v-tabs-window v-model="tab">
         <v-tabs-window-item :value="1">
           <v-select
