@@ -1,4 +1,4 @@
-/* global Vue, Vuetify */
+/* global Vue, Vuetify, WebSocket */
 
 const { createApp } = Vue
 const { createVuetify } = Vuetify
@@ -19,7 +19,7 @@ const app = createApp({
       websocketConnected: false,
       reconnectAttempts: 0,
       maxReconnectAttempts: 5,
-      reconnectInterval: null,
+      reconnectInterval: undefined,
       headers: [
         { title: '', key: 'data-table-expand' },
         {
@@ -164,7 +164,7 @@ const app = createApp({
         // Clear any existing reconnect interval
         if (this.reconnectInterval) {
           clearInterval(this.reconnectInterval)
-          this.reconnectInterval = null
+          this.reconnectInterval = undefined
         }
       })
 
@@ -492,13 +492,13 @@ const app = createApp({
     // Cleanup WebSocket connection
     if (this.websocket) {
       this.websocket.close()
-      this.websocket = null
+      this.websocket = undefined
     }
     
     // Clear reconnect interval
     if (this.reconnectInterval) {
       clearInterval(this.reconnectInterval)
-      this.reconnectInterval = null
+      this.reconnectInterval = undefined
     }
   },
 })

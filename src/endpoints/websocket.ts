@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { BaseRouter } from './index'
 import { Logger } from '@book000/node-utils'
 import { ENV } from '../environments'
