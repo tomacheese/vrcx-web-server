@@ -19,6 +19,7 @@ const app = createApp({
       websocketConnected: false,
       reconnectAttempts: 0,
       maxReconnectAttempts: 5,
+      maxReconnectDelay: 30_000, // Maximum reconnect delay in milliseconds
       reconnectInterval: undefined,
       headers: [
         { title: '', key: 'data-table-expand' },
@@ -239,7 +240,7 @@ const app = createApp({
       }
 
       this.reconnectAttempts++
-      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30_000) // Exponential backoff, max 30s
+      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay) // Exponential backoff
       
       console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
       

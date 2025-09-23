@@ -53,6 +53,12 @@ export class WebSocketRouter extends BaseRouter {
     this.startDatabaseMonitoring()
   }
 
+  private getDatabasePath(): string {
+    const username = process.env.USERNAME
+    const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
+    return ENV.VRCX_SQLITE_FILEPATH || defaultPath
+  }
+
   private handleConnection(connection: FastifyWebSocketConnection): void {
     this.logger.info('WebSocket client connected')
     this.clients.add(connection)
@@ -151,9 +157,7 @@ export class WebSocketRouter extends BaseRouter {
     }
 
     try {
-      const username = process.env.USERNAME
-      const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
-      const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
+      const path = this.getDatabasePath()
 
       if (!fs.existsSync(path)) {
         return // Database file doesn't exist
@@ -210,9 +214,7 @@ export class WebSocketRouter extends BaseRouter {
   }
 
   private getFeedData(): DataRecord[] {
-    const username = process.env.USERNAME
-    const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
-    const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
+    const path = this.getDatabasePath()
 
     if (!fs.existsSync(path)) {
       return []
@@ -239,8 +241,8 @@ export class WebSocketRouter extends BaseRouter {
       const feedTypes = ['gps', 'status', 'bio', 'avatar', 'online_offline']
 
       for (const type of feedTypes) {
+        const tableName = `${pathUserId}_feed_${type}`
         try {
-          const tableName = `${pathUserId}_feed_${type}`
           const records = database
             .prepare(
               `SELECT * FROM ${tableName} ORDER BY created_at DESC LIMIT 1000`
@@ -284,7 +286,7 @@ export class WebSocketRouter extends BaseRouter {
             })
           }
         } catch {
-          // Table might not exist, skip silently
+          // Table might not exist, skip silently - this is expected for optional tables
         }
       }
 
@@ -298,9 +300,7 @@ export class WebSocketRouter extends BaseRouter {
   }
 
   private getGamelogData(): DataRecord[] {
-    const username = process.env.USERNAME
-    const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
-    const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
+    const path = this.getDatabasePath()
 
     if (!fs.existsSync(path)) {
       return []
@@ -315,8 +315,8 @@ export class WebSocketRouter extends BaseRouter {
       const gamelogTypes = ['location', 'join_leave', 'video_play', 'event']
 
       for (const type of gamelogTypes) {
+        const tableName = `gamelog_${type}`
         try {
-          const tableName = `gamelog_${type}`
           const records = database
             .prepare(
               `SELECT * FROM ${tableName} ORDER BY created_at DESC LIMIT 1000`
@@ -362,7 +362,7 @@ export class WebSocketRouter extends BaseRouter {
             })
           }
         } catch {
-          // Table might not exist, skip silently
+          // Table might not exist, skip silently - this is expected for optional tables
         }
       }
 
