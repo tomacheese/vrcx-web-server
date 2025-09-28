@@ -84,11 +84,11 @@ const app = createApp({
 
     await this.fetchUserId()
     
-    // Initialize WebSocket for real-time updates
-    this.initWebSocket()
+    // Fetch initial data immediately using REST API (preserves original details logic)
+    this.fetchRecords(1, 1000)
     
-    // Don't fetch initial data immediately - let WebSocket handle it
-    // If WebSocket has no data, it will fall back to fetchRecords
+    // Initialize WebSocket for real-time updates after initial data load
+    this.initWebSocket()
   },
   watch: {
     tab() {
@@ -197,27 +197,16 @@ const app = createApp({
     handleWebSocketMessage(data) {
       switch (data.type) {
         case 'initial_data': {
-          console.log('Received initial data', data.data)
-          
-          // Check if we have any data from WebSocket
-          const hasFeedData = data.data.feed && data.data.feed.length > 0
-          const hasGamelogData = data.data.gamelog && data.data.gamelog.length > 0
-          
-          if (hasFeedData || hasGamelogData) {
-            // Use WebSocket data if available
-            this.updateFeedData(data.data.feed)
-            this.updateGamelogData(data.data.gamelog)
-          } else {
-            // Fallback to REST API if WebSocket has no data
-            console.log('No data from WebSocket, falling back to REST API')
-            this.fetchRecords(1, 1000)
-          }
+          console.log('Received initial data from WebSocket - ignoring since we use REST API for initial load')
+          // We ignore initial data from WebSocket since we already loaded data via REST API
+          // This preserves the original details formatting logic
           break
         }
         case 'data_update': {
-          console.log('Received data update', data.data)
-          this.updateFeedData(data.data.feed)
-          this.updateGamelogData(data.data.gamelog)
+          console.log('Received data update via WebSocket - refreshing data')
+          // When WebSocket notifies of data changes, refresh using REST API
+          // to maintain consistent data formatting
+          this.fetchRecords(1, 1000)
           break
         }
         case 'pong': {
@@ -227,22 +216,6 @@ const app = createApp({
         default: {
           console.warn('Unknown WebSocket message type:', data.type)
         }
-      }
-    },
-    updateFeedData(feedData) {
-      if (feedData && Array.isArray(feedData)) {
-        this.feed.items = feedData.map(item => ({
-          ...item,
-          created_at: new Date(item.created_at)
-        }))
-      }
-    },
-    updateGamelogData(gamelogData) {
-      if (gamelogData && Array.isArray(gamelogData)) {
-        this.gamelog.items = gamelogData.map(item => ({
-          ...item,
-          created_at: new Date(item.created_at)
-        }))
       }
     },
     attemptReconnect() {
