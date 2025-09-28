@@ -263,17 +263,32 @@ export class WebSocketRouter extends BaseRouter {
             let details = ''
             let displayType = type
 
-            if (
-              type === 'status' &&
-              recordData.status_description &&
-              recordData.status
-            ) {
-              details = `${recordData.status_description} (${recordData.status})`
-            } else if (type === 'online_offline') {
-              details = this.getWorldName(record)
-              displayType = recordData.type?.toLowerCase() ?? type
-            } else if (type === 'gps') {
-              details = this.getWorldName(record)
+            switch (type) {
+              case 'status': {
+                if (recordData.status_description && recordData.status) {
+                  details = `${recordData.status_description} (${recordData.status})`
+                }
+                break
+              }
+              case 'bio': {
+                const bioData = record as { bio?: string }
+                details = bioData.bio ?? ''
+                break
+              }
+              case 'avatar': {
+                const avatarData = record as { avatar_name?: string }
+                details = avatarData.avatar_name ?? ''
+                break
+              }
+              case 'online_offline': {
+                details = this.getWorldName(record)
+                displayType = recordData.type?.toLowerCase() ?? type
+                break
+              }
+              case 'gps': {
+                details = this.getWorldName(record)
+                break
+              }
             }
 
             feedData.push({
@@ -376,18 +391,20 @@ export class WebSocketRouter extends BaseRouter {
   }
 
   private getWorldName(item: unknown): string {
-    const itemData = item as { world_name?: string }
-    const worldName = itemData.world_name
-    if (!worldName) {
-      return ''
+    const itemData = item as {
+      world_name?: string
+      location?: string
     }
 
-    // Extract world name from full path
-    const worldNameParts = worldName.split(' ')
-    if (worldNameParts.length > 1) {
-      return worldNameParts.slice(1).join(' ')
+    if (itemData.world_name) {
+      return itemData.world_name
+    } else if (itemData.location === 'private') {
+      return 'Private'
+    } else if (itemData.location === 'traveling') {
+      return 'Traveling'
+    } else {
+      return 'Unknown'
     }
-    return worldName
   }
 
   destroy(): void {
