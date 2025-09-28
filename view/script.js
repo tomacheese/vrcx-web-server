@@ -87,8 +87,8 @@ const app = createApp({
     // Initialize WebSocket for real-time updates
     this.initWebSocket()
     
-    // Fetch initial data immediately 
-    this.fetchRecords(1, 1000)
+    // Don't fetch initial data immediately - let WebSocket handle it
+    // If WebSocket has no data, it will fall back to fetchRecords
   },
   watch: {
     tab() {
@@ -197,13 +197,25 @@ const app = createApp({
     handleWebSocketMessage(data) {
       switch (data.type) {
         case 'initial_data': {
-          console.log('Received initial data')
-          this.updateFeedData(data.data.feed)
-          this.updateGamelogData(data.data.gamelog)
+          console.log('Received initial data', data.data)
+          
+          // Check if we have any data from WebSocket
+          const hasFeedData = data.data.feed && data.data.feed.length > 0
+          const hasGamelogData = data.data.gamelog && data.data.gamelog.length > 0
+          
+          if (hasFeedData || hasGamelogData) {
+            // Use WebSocket data if available
+            this.updateFeedData(data.data.feed)
+            this.updateGamelogData(data.data.gamelog)
+          } else {
+            // Fallback to REST API if WebSocket has no data
+            console.log('No data from WebSocket, falling back to REST API')
+            this.fetchRecords(1, 1000)
+          }
           break
         }
         case 'data_update': {
-          console.log('Received data update')
+          console.log('Received data update', data.data)
           this.updateFeedData(data.data.feed)
           this.updateGamelogData(data.data.gamelog)
           break
