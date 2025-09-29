@@ -1,4 +1,4 @@
-/* global Vue, Vuetify */
+/* global Vue, Vuetify, WebSocket */
 
 const { createApp } = Vue
 const { createVuetify } = Vuetify
@@ -15,24 +15,22 @@ const app = createApp({
       apiBaseUrl: undefined,
       tab: 1,
       userId: '',
+      websocket: undefined,
+      websocketConnected: false,
+      reconnectAttempts: 0,
+      maxReconnectAttempts: 5,
+      maxReconnectDelay: 30000,
+      reconnectInterval: undefined,
+      wsInitTimeoutId: undefined,
+      fallbackIntervalId: undefined,
+      initialWsTimeoutId: 5000,
+      fallbackPollIntervalMs: 10000,
       headers: [
         { title: '', key: 'data-table-expand' },
-        {
-          title: '日付',
-          key: 'created_at',
-        },
-        {
-          title: '種類',
-          key: 'type',
-        },
-        {
-          title: 'ユーザー',
-          key: 'display_name',
-        },
-        {
-          title: '詳細',
-          key: 'details',
-        },
+        { title: '日付', key: 'created_at' },
+        { title: '種類', key: 'type' },
+        { title: 'ユーザー', key: 'display_name' },
+        { title: '詳細', key: 'details' },
       ],
       feed: {
         expanded: [],
@@ -40,34 +38,15 @@ const app = createApp({
         loadingItems: [],
         search: '',
         selectTypes: ['gps', 'status', 'bio', 'avatar', 'online', 'offline'],
-        types: {
-          gps: 'GPS',
-          status: 'Status',
-          bio: 'Bio',
-          avatar: 'Avatar',
-          online: 'Online',
-          offline: 'Offline',
-        },
+        types: { gps: 'GPS', status: 'Status', bio: 'Bio', avatar: 'Avatar', online: 'Online', offline: 'Offline' },
       },
       gamelog: {
         expanded: [],
         items: [],
         loadingItems: [],
         search: '',
-        selectTypes: [
-          'location',
-          'onplayerjoined',
-          'onplayerleft',
-          'video_play',
-          'event',
-        ],
-        types: {
-          location: 'Location',
-          onplayerjoined: 'OnPlayerJoined',
-          onplayerleft: 'OnPlayerLeft',
-          video_play: 'Video Play',
-          event: 'Event',
-        },
+        selectTypes: ['location', 'onplayerjoined', 'onplayerleft', 'video_play', 'event'],
+        types: { location: 'Location', onplayerjoined: 'OnPlayerJoined', onplayerleft: 'OnPlayerLeft', video_play: 'Video Play', event: 'Event' },
       },
     }
   },
@@ -77,16 +56,20 @@ const app = createApp({
     }
 
     await this.fetchUserId()
-    this.fetchRecords(1, 1000)
+    this.initWebSocket()
 
-    setInterval(() => {
-      this.fetchRecords(1, 1000)
-    }, 1000 * 10)
+    // WS初期データが一定時間届かない場合はRESTフォールバックを開始
+    this.wsInitTimeoutId = setTimeout(() => {
+      if (this.feed.items.length === 0 && this.gamelog.items.length === 0) {
+        this.startFallbackPolling()
+      }
+      this.wsInitTimeoutId = undefined
+    }, this.initialWsTimeoutMs)
   },
   watch: {
     tab() {
+      // No REST fetch on tab change; WS payload drives updates for both tabs
       console.log('tab', this.tab)
-      this.fetchRecords(1, 1000)
     },
   },
   computed: {
@@ -142,6 +125,172 @@ const app = createApp({
       const config = data.find((item) => item.key === key)
       this.userId = config.value
     },
+    initWebSocket() {
+      if (this.websocket) {
+        this.websocket.close()
+      }
+
+      const wsUrl = this.apiBaseUrl.replace(/^http/, 'ws') + '/api/ws'
+      console.log('Connecting to WebSocket:', wsUrl)
+      
+      this.websocket = new WebSocket(wsUrl)
+
+      this.websocket.addEventListener('open', () => {
+        console.log('WebSocket connected')
+        this.websocketConnected = true
+        this.reconnectAttempts = 0
+        this.stopFallbackPolling()
+        // Subscribe to updates
+        this.websocket.send(JSON.stringify({ type: 'subscribe' }))
+        if (this.reconnectInterval) {
+          clearInterval(this.reconnectInterval)
+          this.reconnectInterval = undefined
+        }
+      })
+
+      this.websocket.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          this.handleWebSocketMessage(data)
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      })
+
+      this.websocket.addEventListener('close', () => {
+        console.log('WebSocket disconnected')
+        this.websocketConnected = false
+        // 開いていた場合のフォールバック再開
+        this.startFallbackPolling()
+        this.attemptReconnect()
+      })
+
+      this.websocket.addEventListener('error', (error) => {
+        console.error('WebSocket error:', error)
+        this.websocketConnected = false
+      })
+    },
+    handleWebSocketMessage(data) {
+      switch (data.type) {
+        case 'initial_data': {
+          this.applyWsPayload(data.data)
+          break
+        }
+        case 'data_update': {
+          this.applyWsPayload(data.data)
+          break
+        }
+        case 'pong': {
+          break
+        }
+        default: {
+          console.warn('Unknown WebSocket message type:', data.type)
+        }
+      }
+    },
+    attemptReconnect() {
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        console.error('Max reconnection attempts reached')
+        return
+      }
+
+      this.reconnectAttempts++
+      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay) // Exponential backoff
+      
+      console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+      
+      this.reconnectInterval = setTimeout(() => {
+        this.initWebSocket()
+      }, delay)
+    },    // REST-based fetch functions kept for fallback only (not used in WS-only mode)
+
+    applyWsPayload(payload) {
+      if (!payload) return
+      const feed = Array.isArray(payload.feed) ? payload.feed : []
+      this.feed.items = this.shapeFeedRecords(feed)
+      const gamelog = Array.isArray(payload.gamelog) ? payload.gamelog : []
+      this.gamelog.items = this.shapeGamelogRecords(gamelog)
+    },
+    shapeFeedRecords(records) {
+      const shaped = []
+      for (const rec of records) {
+        const raw = rec.data || {}
+        let type = rec.type
+        let details = ''
+        switch (type) {
+          case 'gps': {
+            details = this.getWorldName(raw)
+            break
+          }
+          case 'status': {
+            details = `${raw.status_description} (${raw.status})`
+            break
+          }
+          case 'bio': {
+            details = raw.bio
+            break
+          }
+          case 'avatar': {
+            details = raw.avatar_name
+            break
+          }
+          case 'online_offline': {
+            details = this.getWorldName(raw)
+            type = (raw.type || type).toLowerCase()
+            break
+          }
+        }
+        shaped.push({
+          id: `${type}-${raw.id}`,
+          created_at: new Date(rec.created_at),
+          type,
+          display_name: raw.display_name || rec.display_name || '',
+          details,
+          data: raw,
+        })
+      }
+      shaped.sort((a, b) => b.created_at - a.created_at)
+      return shaped
+    },
+    shapeGamelogRecords(records) {
+      const shaped = []
+      for (const rec of records) {
+        const raw = rec.data || {}
+        let type = rec.type
+        let details = ''
+        let id = `${type}-${raw.id}`
+        switch (type) {
+          case 'location': {
+            details = this.getWorldName(raw)
+            break
+          }
+          case 'join_leave': {
+            type = (raw.type || type).toLowerCase()
+            id = `${raw.type || type}-${raw.id}`
+            details = ''
+            break
+          }
+          case 'video_play': {
+            details = raw.video_name
+            break
+          }
+          case 'event': {
+            details = raw.data
+            break
+          }
+        }
+        shaped.push({
+          id,
+          created_at: new Date(rec.created_at),
+          type,
+          display_name: raw.display_name || rec.display_name || '',
+          details,
+          data: raw,
+        })
+      }
+      shaped.sort((a, b) => b.created_at - a.created_at)
+      return shaped
+    },
     async fetchRecords(page, limit) {
       if (this.tab === 1) {
         this.fetchAllFeed(page, limit)
@@ -149,6 +298,7 @@ const app = createApp({
         this.fetchAllGameLog(page, limit)
       }
     },
+
     async fetchAllFeed(page, limit) {
       this.feed.loadingItems = []
       await Promise.all([
@@ -387,6 +537,37 @@ const app = createApp({
         second: '2-digit',
       })
     },
+  },
+    startFallbackPolling() {
+      // すでに開始済みなら何もしない
+      if (this.fallbackIntervalId) return
+      this.fallbackIntervalId = setInterval(() => {
+        this.fetchRecords(1, 1000)
+      }, this.fallbackPollIntervalMs)
+    },
+    stopFallbackPolling() {
+      if (this.fallbackIntervalId) {
+        clearInterval(this.fallbackIntervalId)
+        this.fallbackIntervalId = undefined
+      }
+    },
+  beforeUnmount() {
+    if (this.websocket) {
+      this.websocket.close()
+      this.websocket = undefined
+    }
+    if (this.reconnectInterval) {
+      clearInterval(this.reconnectInterval)
+      this.reconnectInterval = undefined
+    }
+    if (this.wsInitTimeoutId) {
+      clearTimeout(this.wsInitTimeoutId)
+      this.wsInitTimeoutId = undefined
+    }
+    if (this.fallbackIntervalId) {
+      clearInterval(this.fallbackIntervalId)
+      this.fallbackIntervalId = undefined
+    }
   },
 })
 app.use(vuetify).mount('#app')
