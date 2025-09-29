@@ -19,7 +19,7 @@ const app = createApp({
       websocketConnected: false,
       reconnectAttempts: 0,
       maxReconnectAttempts: 5,
-      maxReconnectDelay: 30_000,
+      maxReconnectDelay: 30000,
       reconnectInterval: undefined,
       wsInitTimeoutId: undefined,
       fallbackIntervalId: undefined,
@@ -218,22 +218,27 @@ const app = createApp({
         let type = rec.type
         let details = ''
         switch (type) {
-          case 'gps':
+          case 'gps': {
             details = this.getWorldName(raw)
             break
-          case 'status':
+          }
+          case 'status': {
             details = `${raw.status_description} (${raw.status})`
             break
-          case 'bio':
+          }
+          case 'bio': {
             details = raw.bio
             break
-          case 'avatar':
+          }
+          case 'avatar': {
             details = raw.avatar_name
             break
-          case 'online_offline':
+          }
+          case 'online_offline': {
             details = this.getWorldName(raw)
             type = (raw.type || type).toLowerCase()
             break
+          }
         }
         shaped.push({
           id: `${type}-${raw.id}`,
@@ -255,20 +260,24 @@ const app = createApp({
         let details = ''
         let id = `${type}-${raw.id}`
         switch (type) {
-          case 'location':
+          case 'location': {
             details = this.getWorldName(raw)
             break
-          case 'join_leave':
+          }
+          case 'join_leave': {
             type = (raw.type || type).toLowerCase()
             id = `${raw.type || type}-${raw.id}`
             details = ''
             break
-          case 'video_play':
+          }
+          case 'video_play': {
             details = raw.video_name
             break
-          case 'event':
+          }
+          case 'event': {
             details = raw.data
             break
+          }
         }
         shaped.push({
           id,
