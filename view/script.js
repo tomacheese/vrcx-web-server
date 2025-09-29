@@ -23,7 +23,7 @@ const app = createApp({
       reconnectInterval: undefined,
       wsInitTimeoutId: undefined,
       fallbackIntervalId: undefined,
-      initialWsTimeoutMs: 5000,
+      initialWsTimeoutId: 5000,
       fallbackPollIntervalMs: 10000,
       headers: [
         { title: '', key: 'data-table-expand' },
