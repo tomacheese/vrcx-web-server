@@ -19,26 +19,18 @@ const app = createApp({
       websocketConnected: false,
       reconnectAttempts: 0,
       maxReconnectAttempts: 5,
-      maxReconnectDelay: 30_000, // Maximum reconnect delay in milliseconds
+      maxReconnectDelay: 30_000,
       reconnectInterval: undefined,
+      wsInitTimeoutId: undefined,
+      fallbackIntervalId: undefined,
+      initialWsTimeoutMs: 5000,
+      fallbackPollIntervalMs: 10000,
       headers: [
         { title: '', key: 'data-table-expand' },
-        {
-          title: '日付',
-          key: 'created_at',
-        },
-        {
-          title: '種類',
-          key: 'type',
-        },
-        {
-          title: 'ユーザー',
-          key: 'display_name',
-        },
-        {
-          title: '詳細',
-          key: 'details',
-        },
+        { title: '日付', key: 'created_at' },
+        { title: '種類', key: 'type' },
+        { title: 'ユーザー', key: 'display_name' },
+        { title: '詳細', key: 'details' },
       ],
       feed: {
         expanded: [],
@@ -46,34 +38,15 @@ const app = createApp({
         loadingItems: [],
         search: '',
         selectTypes: ['gps', 'status', 'bio', 'avatar', 'online', 'offline'],
-        types: {
-          gps: 'GPS',
-          status: 'Status',
-          bio: 'Bio',
-          avatar: 'Avatar',
-          online: 'Online',
-          offline: 'Offline',
-        },
+        types: { gps: 'GPS', status: 'Status', bio: 'Bio', avatar: 'Avatar', online: 'Online', offline: 'Offline' },
       },
       gamelog: {
         expanded: [],
         items: [],
         loadingItems: [],
         search: '',
-        selectTypes: [
-          'location',
-          'onplayerjoined',
-          'onplayerleft',
-          'video_play',
-          'event',
-        ],
-        types: {
-          location: 'Location',
-          onplayerjoined: 'OnPlayerJoined',
-          onplayerleft: 'OnPlayerLeft',
-          video_play: 'Video Play',
-          event: 'Event',
-        },
+        selectTypes: ['location', 'onplayerjoined', 'onplayerleft', 'video_play', 'event'],
+        types: { location: 'Location', onplayerjoined: 'OnPlayerJoined', onplayerleft: 'OnPlayerLeft', video_play: 'Video Play', event: 'Event' },
       },
     }
   },
@@ -83,8 +56,15 @@ const app = createApp({
     }
 
     await this.fetchUserId()
-    // Initialize WebSocket and rely on WS payloads for initial and subsequent updates
     this.initWebSocket()
+
+    // WS初期データが一定時間届かない場合はRESTフォールバックを開始
+    this.wsInitTimeoutId = setTimeout(() => {
+      if (this.feed.items.length === 0 && this.gamelog.items.length === 0) {
+        this.startFallbackPolling()
+      }
+      this.wsInitTimeoutId = undefined
+    }, this.initialWsTimeoutMs)
   },
   watch: {
     tab() {
@@ -159,11 +139,9 @@ const app = createApp({
         console.log('WebSocket connected')
         this.websocketConnected = true
         this.reconnectAttempts = 0
-        
+        this.stopFallbackPolling()
         // Subscribe to updates
         this.websocket.send(JSON.stringify({ type: 'subscribe' }))
-        
-        // Clear any existing reconnect interval
         if (this.reconnectInterval) {
           clearInterval(this.reconnectInterval)
           this.reconnectInterval = undefined
@@ -182,6 +160,8 @@ const app = createApp({
       this.websocket.addEventListener('close', () => {
         console.log('WebSocket disconnected')
         this.websocketConnected = false
+        // 開いていた場合のフォールバック再開
+        this.startFallbackPolling()
         this.attemptReconnect()
       })
 
@@ -549,17 +529,35 @@ const app = createApp({
       })
     },
   },
+    startFallbackPolling() {
+      // すでに開始済みなら何もしない
+      if (this.fallbackIntervalId) return
+      this.fallbackIntervalId = setInterval(() => {
+        this.fetchRecords(1, 1000)
+      }, this.fallbackPollIntervalMs)
+    },
+    stopFallbackPolling() {
+      if (this.fallbackIntervalId) {
+        clearInterval(this.fallbackIntervalId)
+        this.fallbackIntervalId = undefined
+      }
+    },
   beforeUnmount() {
-    // Cleanup WebSocket connection
     if (this.websocket) {
       this.websocket.close()
       this.websocket = undefined
     }
-    
-    // Clear reconnect interval
     if (this.reconnectInterval) {
       clearInterval(this.reconnectInterval)
       this.reconnectInterval = undefined
+    }
+    if (this.wsInitTimeoutId) {
+      clearTimeout(this.wsInitTimeoutId)
+      this.wsInitTimeoutId = undefined
+    }
+    if (this.fallbackIntervalId) {
+      clearInterval(this.fallbackIntervalId)
+      this.fallbackIntervalId = undefined
     }
   },
 })
