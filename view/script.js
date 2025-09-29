@@ -1,4 +1,4 @@
-/* global Vue, Vuetify */
+/* global Vue, Vuetify, WebSocket */
 
 const { createApp } = Vue
 const { createVuetify } = Vuetify
@@ -15,6 +15,12 @@ const app = createApp({
       apiBaseUrl: undefined,
       tab: 1,
       userId: '',
+      websocket: undefined,
+      websocketConnected: false,
+      reconnectAttempts: 0,
+      maxReconnectAttempts: 5,
+      maxReconnectDelay: 30_000, // Maximum reconnect delay in milliseconds
+      reconnectInterval: undefined,
       headers: [
         { title: '', key: 'data-table-expand' },
         {
@@ -77,15 +83,17 @@ const app = createApp({
     }
 
     await this.fetchUserId()
+    
+    // Fetch initial data immediately using REST API (preserves original details logic)
     this.fetchRecords(1, 1000)
-
-    setInterval(() => {
-      this.fetchRecords(1, 1000)
-    }, 1000 * 10)
+    
+    // Initialize WebSocket for real-time updates after initial data load
+    this.initWebSocket()
   },
   watch: {
     tab() {
       console.log('tab', this.tab)
+      // Fetch data for the new tab to ensure it has initial data
       this.fetchRecords(1, 1000)
     },
   },
@@ -141,6 +149,90 @@ const app = createApp({
       const key = 'config:lastuserloggedin'
       const config = data.find((item) => item.key === key)
       this.userId = config.value
+    },
+    initWebSocket() {
+      if (this.websocket) {
+        this.websocket.close()
+      }
+
+      const wsUrl = this.apiBaseUrl.replace(/^http/, 'ws') + '/api/ws'
+      console.log('Connecting to WebSocket:', wsUrl)
+      
+      this.websocket = new WebSocket(wsUrl)
+
+      this.websocket.addEventListener('open', () => {
+        console.log('WebSocket connected')
+        this.websocketConnected = true
+        this.reconnectAttempts = 0
+        
+        // Subscribe to updates
+        this.websocket.send(JSON.stringify({ type: 'subscribe' }))
+        
+        // Clear any existing reconnect interval
+        if (this.reconnectInterval) {
+          clearInterval(this.reconnectInterval)
+          this.reconnectInterval = undefined
+        }
+      })
+
+      this.websocket.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          this.handleWebSocketMessage(data)
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      })
+
+      this.websocket.addEventListener('close', () => {
+        console.log('WebSocket disconnected')
+        this.websocketConnected = false
+        this.attemptReconnect()
+      })
+
+      this.websocket.addEventListener('error', (error) => {
+        console.error('WebSocket error:', error)
+        this.websocketConnected = false
+      })
+    },
+    handleWebSocketMessage(data) {
+      switch (data.type) {
+        case 'initial_data': {
+          console.log('Received initial data from WebSocket - ignoring since we use REST API for initial load')
+          // We ignore initial data from WebSocket since we already loaded data via REST API
+          // This preserves the original details formatting logic
+          break
+        }
+        case 'data_update': {
+          console.log('Received data update via WebSocket - refreshing data')
+          // When WebSocket notifies of data changes, refresh using REST API
+          // to maintain consistent data formatting
+          this.fetchRecords(1, 1000)
+          break
+        }
+        case 'pong': {
+          // Heartbeat response
+          break
+        }
+        default: {
+          console.warn('Unknown WebSocket message type:', data.type)
+        }
+      }
+    },
+    attemptReconnect() {
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        console.error('Max reconnection attempts reached')
+        return
+      }
+
+      this.reconnectAttempts++
+      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay) // Exponential backoff
+      
+      console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+      
+      this.reconnectInterval = setTimeout(() => {
+        this.initWebSocket()
+      }, delay)
     },
     async fetchRecords(page, limit) {
       if (this.tab === 1) {
@@ -387,6 +479,19 @@ const app = createApp({
         second: '2-digit',
       })
     },
+  },
+  beforeUnmount() {
+    // Cleanup WebSocket connection
+    if (this.websocket) {
+      this.websocket.close()
+      this.websocket = undefined
+    }
+    
+    // Clear reconnect interval
+    if (this.reconnectInterval) {
+      clearInterval(this.reconnectInterval)
+      this.reconnectInterval = undefined
+    }
   },
 })
 app.use(vuetify).mount('#app')
