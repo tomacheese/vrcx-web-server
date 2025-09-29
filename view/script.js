@@ -93,7 +93,8 @@ const app = createApp({
   watch: {
     tab() {
       console.log('tab', this.tab)
-      // No need to fetch when tab changes - WebSocket handles real-time updates
+      // Fetch data for the new tab to ensure it has initial data
+      this.fetchRecords(1, 1000)
     },
   },
   computed: {
