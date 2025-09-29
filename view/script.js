@@ -83,18 +83,13 @@ const app = createApp({
     }
 
     await this.fetchUserId()
-    
-    // Fetch initial data immediately using REST API (preserves original details logic)
-    this.fetchRecords(1, 1000)
-    
-    // Initialize WebSocket for real-time updates after initial data load
+    // Initialize WebSocket and rely on WS payloads for initial and subsequent updates
     this.initWebSocket()
   },
   watch: {
     tab() {
+      // No REST fetch on tab change; WS payload drives updates for both tabs
       console.log('tab', this.tab)
-      // Fetch data for the new tab to ensure it has initial data
-      this.fetchRecords(1, 1000)
     },
   },
   computed: {
@@ -198,20 +193,14 @@ const app = createApp({
     handleWebSocketMessage(data) {
       switch (data.type) {
         case 'initial_data': {
-          console.log('Received initial data from WebSocket - ignoring since we use REST API for initial load')
-          // We ignore initial data from WebSocket since we already loaded data via REST API
-          // This preserves the original details formatting logic
+          this.applyWsPayload(data.data)
           break
         }
         case 'data_update': {
-          console.log('Received data update via WebSocket - refreshing data')
-          // When WebSocket notifies of data changes, refresh using REST API
-          // to maintain consistent data formatting
-          this.fetchRecords(1, 1000)
+          this.applyWsPayload(data.data)
           break
         }
         case 'pong': {
-          // Heartbeat response
           break
         }
         default: {
@@ -233,6 +222,85 @@ const app = createApp({
       this.reconnectInterval = setTimeout(() => {
         this.initWebSocket()
       }, delay)
+    },    // REST-based fetch functions kept for fallback only (not used in WS-only mode)
+
+    applyWsPayload(payload) {
+      if (!payload) return
+      const feed = Array.isArray(payload.feed) ? payload.feed : []
+      this.feed.items = this.shapeFeedRecords(feed)
+      const gamelog = Array.isArray(payload.gamelog) ? payload.gamelog : []
+      this.gamelog.items = this.shapeGamelogRecords(gamelog)
+    },
+    shapeFeedRecords(records) {
+      const shaped = []
+      for (const rec of records) {
+        const raw = rec.data || {}
+        let type = rec.type
+        let details = ''
+        switch (type) {
+          case 'gps':
+            details = this.getWorldName(raw)
+            break
+          case 'status':
+            details = `${raw.status_description} (${raw.status})`
+            break
+          case 'bio':
+            details = raw.bio
+            break
+          case 'avatar':
+            details = raw.avatar_name
+            break
+          case 'online_offline':
+            details = this.getWorldName(raw)
+            type = (raw.type || type).toLowerCase()
+            break
+        }
+        shaped.push({
+          id: `${type}-${raw.id}`,
+          created_at: new Date(rec.created_at),
+          type,
+          display_name: raw.display_name || rec.display_name || '',
+          details,
+          data: raw,
+        })
+      }
+      shaped.sort((a, b) => b.created_at - a.created_at)
+      return shaped
+    },
+    shapeGamelogRecords(records) {
+      const shaped = []
+      for (const rec of records) {
+        const raw = rec.data || {}
+        let type = rec.type
+        let details = ''
+        let id = `${type}-${raw.id}`
+        switch (type) {
+          case 'location':
+            details = this.getWorldName(raw)
+            break
+          case 'join_leave':
+            type = (raw.type || type).toLowerCase()
+            id = `${raw.type || type}-${raw.id}`
+            details = ''
+            break
+          case 'video_play':
+            details = raw.video_name
+            break
+          case 'event':
+            details = raw.data
+            break
+        }
+        shaped.push({
+          id,
+          created_at: new Date(rec.created_at),
+          type,
+          display_name: raw.display_name || rec.display_name || '',
+          details,
+          data: raw,
+        })
+      }
+      shaped.sort((a, b) => b.created_at - a.created_at)
+      return shaped
     },
     async fetchRecords(page, limit) {
       if (this.tab === 1) {
@@ -241,6 +309,7 @@ const app = createApp({
         this.fetchAllGameLog(page, limit)
       }
     },
+
     async fetchAllFeed(page, limit) {
       this.feed.loadingItems = []
       await Promise.all([
