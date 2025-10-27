@@ -1,4 +1,4 @@
-/* global Vue, Vuetify */
+/* global Vue, Vuetify, WebSocket */
 
 const { createApp } = Vue
 const { createVuetify } = Vuetify
@@ -15,6 +15,15 @@ const app = createApp({
       apiBaseUrl: undefined,
       tab: 1,
       userId: '',
+      pollingTimer: undefined,
+      realtime: {
+        supported: 'WebSocket' in globalThis,
+        connected: false,
+        connection: undefined,
+        reconnectTimer: undefined,
+        reconnectAttempt: 0,
+        manualClose: false,
+      },
       headers: [
         { title: '', key: 'data-table-expand' },
         {
@@ -77,11 +86,15 @@ const app = createApp({
     }
 
     await this.fetchUserId()
-    this.fetchRecords(1, 1000)
-
-    setInterval(() => {
-      this.fetchRecords(1, 1000)
-    }, 1000 * 10)
+    await this.fetchRecords(1, 1000)
+    this.startRealtime()
+    if (!this.realtime.supported) {
+      this.startFallbackPolling()
+    }
+  },
+  beforeUnmount() {
+    this.stopFallbackPolling()
+    this.teardownRealtime()
   },
   watch: {
     tab() {
@@ -133,6 +146,223 @@ const app = createApp({
     },
   },
   methods: {
+    startRealtime() {
+      if (!this.realtime.supported) {
+        return
+      }
+      this.initializeWebSocket()
+    },
+    initializeWebSocket() {
+      const url = new URL('/ws', this.apiBaseUrl)
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+
+      this.teardownRealtime()
+
+      const socket = new WebSocket(url)
+      this.realtime.connection = socket
+
+      socket.addEventListener('open', () => {
+        this.realtime.connected = true
+        this.realtime.reconnectAttempt = 0
+        this.stopFallbackPolling()
+      })
+
+      socket.addEventListener('message', (event) => {
+        try {
+          const payload = JSON.parse(event.data)
+          this.handleRealtimeMessage(payload)
+        } catch (error) {
+          console.error('Failed to parse realtime message', error)
+        }
+      })
+
+      socket.addEventListener('close', () => {
+        this.realtime.connected = false
+        this.realtime.connection = undefined
+        if (this.realtime.manualClose) {
+          this.realtime.manualClose = false
+          return
+        }
+        this.scheduleReconnect()
+        this.startFallbackPolling()
+      })
+
+      socket.addEventListener('error', () => {
+        socket.close()
+      })
+    },
+    teardownRealtime() {
+      if (this.realtime.reconnectTimer) {
+        clearTimeout(this.realtime.reconnectTimer)
+        this.realtime.reconnectTimer = undefined
+      }
+
+      if (this.realtime.connection) {
+        this.realtime.manualClose = true
+        this.realtime.connection.close()
+        this.realtime.connection = undefined
+      }
+
+      this.realtime.connected = false
+    },
+    scheduleReconnect() {
+      if (!this.realtime.supported) {
+        return
+      }
+
+      if (this.realtime.reconnectTimer) {
+        return
+      }
+
+      const attempt = this.realtime.reconnectAttempt ?? 0
+      const delay = Math.min(1e3 * 2 ** attempt, 3e4)
+
+      this.realtime.reconnectTimer = setTimeout(() => {
+        this.realtime.reconnectTimer = undefined
+        this.realtime.reconnectAttempt = attempt + 1
+        this.initializeWebSocket()
+      }, delay)
+    },
+    startFallbackPolling() {
+      if (this.pollingTimer) {
+        return
+      }
+
+      this.fetchRecords(1, 1000)
+      this.pollingTimer = setInterval(() => {
+        this.fetchRecords(1, 1000)
+      }, 10_000)
+    },
+    stopFallbackPolling() {
+      if (this.pollingTimer) {
+        clearInterval(this.pollingTimer)
+        this.pollingTimer = undefined
+      }
+    },
+    handleRealtimeMessage(message) {
+      if (!message || message.event !== 'record') {
+        return
+      }
+
+      if (message.scope === 'feed') {
+        const item = this.createFeedItem(message.type, message.record)
+        if (!item) {
+          return
+        }
+        this.feed.items = this.upsertItems(this.feed.items, item)
+      } else if (message.scope === 'gamelog') {
+        const item = this.createGameLogItem(message.type, message.record)
+        if (!item) {
+          return
+        }
+        this.gamelog.items = this.upsertItems(this.gamelog.items, item)
+      }
+    },
+    createFeedItem(type, record) {
+      if (!record || typeof record !== 'object') {
+        return
+      }
+
+      const createdAt = new Date(record.created_at)
+      if (Number.isNaN(createdAt.getTime())) {
+        return
+      }
+
+      const base = {
+        id: `${type}-${record.id}`,
+        created_at: createdAt,
+        type,
+        display_name: record.display_name ?? '',
+        details: '',
+        data: record,
+      }
+
+      switch (type) {
+        case 'gps': {
+          base.details = this.getWorldName(record)
+          break
+        }
+        case 'status': {
+          const statusDescription = record.status_description ?? ''
+          const status = record.status ?? ''
+          base.details = `${statusDescription} (${status})`
+          break
+        }
+        case 'bio': {
+          base.details = record.bio ?? ''
+          break
+        }
+        case 'avatar': {
+          base.details = record.avatar_name ?? ''
+          break
+        }
+        case 'online_offline': {
+          const subtype = (record.type ?? '').toLowerCase()
+          base.type = subtype || 'online_offline'
+          base.id = `${record.type ?? type}-${record.id}`
+          base.details = this.getWorldName(record)
+          break
+        }
+        default: {
+          break
+        }
+      }
+
+      return base
+    },
+    createGameLogItem(type, record) {
+      if (!record || typeof record !== 'object') {
+        return
+      }
+
+      const createdAt = new Date(record.created_at)
+      if (Number.isNaN(createdAt.getTime())) {
+        return
+      }
+
+      const base = {
+        id: `${type}-${record.id}`,
+        created_at: createdAt,
+        type,
+        display_name: record.display_name ?? '',
+        details: '',
+        data: record,
+      }
+
+      switch (type) {
+        case 'location': {
+          base.details = this.getWorldName(record)
+          break
+        }
+        case 'join_leave': {
+          const subtype = (record.type ?? '').toLowerCase()
+          base.type = subtype || 'join_leave'
+          base.id = `${record.type ?? type}-${record.id}`
+          base.display_name = record.display_name ?? ''
+          break
+        }
+        case 'video_play': {
+          base.details = record.video_name ?? ''
+          break
+        }
+        case 'event': {
+          base.details = record.data ?? ''
+          break
+        }
+        default: {
+          break
+        }
+      }
+
+      return base
+    },
+    upsertItems(items, newItem) {
+      const original = Array.isArray(items) ? items : []
+      const filtered = original.filter((item) => item.id !== newItem.id)
+      filtered.unshift(newItem)
+      filtered.sort((a, b) => b.created_at - a.created_at)
+      return filtered.slice(0, 1000)
+    },
     async fetchUserId() {
       const url = new URL('/api/configs', this.apiBaseUrl)
       const response = await fetch(url)
@@ -144,9 +374,9 @@ const app = createApp({
     },
     async fetchRecords(page, limit) {
       if (this.tab === 1) {
-        this.fetchAllFeed(page, limit)
+        return this.fetchAllFeed(page, limit)
       } else if (this.tab === 2) {
-        this.fetchAllGameLog(page, limit)
+        return this.fetchAllGameLog(page, limit)
       }
     },
     async fetchAllFeed(page, limit) {
