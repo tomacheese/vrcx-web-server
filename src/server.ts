@@ -1,9 +1,11 @@
 import fastify, { FastifyInstance } from 'fastify'
 import { BaseRouter } from './endpoints'
 import cors from '@fastify/cors'
+import websocket from '@fastify/websocket'
 import { Logger } from '@book000/node-utils'
 import { ApiRouter } from './endpoints/api'
 import { RootRouter } from './endpoints/root'
+import { RealtimeRouter } from './endpoints/realtime'
 /**
  * Fastify アプリケーションを構築する
  *
@@ -18,9 +20,14 @@ export async function buildApp(): Promise<FastifyInstance> {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
   })
+  await app.register(websocket)
 
   // routers
-  const routers: BaseRouter[] = [new RootRouter(app), new ApiRouter(app)]
+  const routers: BaseRouter[] = [
+    new RootRouter(app),
+    new ApiRouter(app),
+    new RealtimeRouter(app),
+  ]
 
   for (const router of routers) {
     logger.info(`⏩ Initializing route: ${router.constructor.name}`)

@@ -1,9 +1,11 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { BaseRouter } from '.'
-import DatabaseConstructor from 'better-sqlite3'
-import { ENV } from '../environments'
+import { Logger } from '@book000/node-utils'
+import { VrcxSqliteService } from '../services/vrcx-sqlite.service'
 
 export class ApiRouter extends BaseRouter {
+  private readonly logger = Logger.configure('ApiRouter')
+
   async init(): Promise<void> {
     await this.fastify.register(
       (fastify, _, done) => {
@@ -26,82 +28,40 @@ export class ApiRouter extends BaseRouter {
     }>,
     reply: FastifyReply
   ): Promise<void> {
-    const username = process.env.USERNAME
-    const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
+    try {
+      const tableName = request.params.tableName
 
-    const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
-    const database = new DatabaseConstructor(path, {
-      readonly: true,
-    })
+      if (!tableName) {
+        const tableRecordCounts = VrcxSqliteService.getTableRecordCounts()
+        await reply.send(tableRecordCounts)
+        return
+      }
 
-    const tableName = request.params.tableName
+      const page = request.query.page ?? 1
+      const limit = request.query.limit ?? 10
 
-    const tables = this.getTables(database)
-    const tableNames = tables.map((table) => table.name)
+      if (page < 1 || limit < 1) {
+        await reply.send({ error: 'Invalid page or limit' })
+        return
+      }
 
-    if (!tableName) {
-      // list tables
-      const tableRecordCounts = this.getTableRecordCounts(database, tables)
-      await reply.send(tableRecordCounts)
-      return
-    }
+      const tables = VrcxSqliteService.listTables()
+      const tableNames = tables.map((table) => table.name)
 
-    // list records
-    const page = request.query.page ?? 1
-    const limit = request.query.limit ?? 10
-    if (page < 1 || limit < 1) {
-      await reply.send({ error: 'Invalid page or limit' })
-      return
-    }
-    if (!tableNames.includes(tableName)) {
-      await reply.send({ error: 'Table not found' })
-      return
-    }
-    const records = this.getRecords(database, tableName, page, limit)
+      if (!tableNames.includes(tableName)) {
+        await reply.send({ error: 'Table not found' })
+        return
+      }
 
-    database.close()
+      const records = VrcxSqliteService.getRecords(tableName, page, limit)
 
-    await reply.send(records)
-  }
-
-  private getTables(database: DatabaseConstructor.Database) {
-    return database
-      .prepare<
-        unknown[],
-        {
-          name: string
-        }
-      >(`SELECT name FROM sqlite_master WHERE type='table'`)
-      .all()
-  }
-
-  private getTableRecordCounts(
-    database: DatabaseConstructor.Database,
-    tables: { name: string }[]
-  ) {
-    return tables.map((table) => {
-      const result = database
-        .prepare<
-          unknown[],
-          {
-            count: number
-          }
-        >(`SELECT COUNT(*) AS count FROM ${table.name}`)
-        .get() ?? { count: 0 }
-      return { name: table.name, count: result.count }
-    })
-  }
-
-  private getRecords(
-    database: DatabaseConstructor.Database,
-    tableName: string,
-    page: number,
-    limit: number
-  ) {
-    return database
-      .prepare(
-        `SELECT * FROM ${tableName} ORDER BY rowid DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`
+      await reply.send(records)
+    } catch (error) {
+      this.logger.error(
+        'Failed to handle API request',
+        error instanceof Error ? error : new Error(String(error))
       )
-      .all()
+      await reply.status(500).send({ error: 'Internal Server Error' })
+    }
   }
 }
