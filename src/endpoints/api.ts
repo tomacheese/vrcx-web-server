@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { BaseRouter } from '.'
 import DatabaseConstructor from 'better-sqlite3'
-import { ENV } from '../environments'
+import { openDatabase } from '../database'
 
 export class ApiRouter extends BaseRouter {
   async init(): Promise<void> {
@@ -26,11 +26,7 @@ export class ApiRouter extends BaseRouter {
     }>,
     reply: FastifyReply
   ): Promise<void> {
-    const username = process.env.USERNAME
-    const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
-
-    const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
-    const database = new DatabaseConstructor(path, {
+    const database = openDatabase({
       readonly: true,
     })
 
