@@ -1,7 +1,11 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { BaseRouter } from '.'
-import DatabaseConstructor from 'better-sqlite3'
-import { ENV } from '../environments'
+import {
+  getRecords,
+  getTableRecordCounts,
+  listTables,
+  openDatabase,
+} from '../lib/vrcx-database'
 
 export class ApiRouter extends BaseRouter {
   async init(): Promise<void> {
@@ -26,22 +30,17 @@ export class ApiRouter extends BaseRouter {
     }>,
     reply: FastifyReply
   ): Promise<void> {
-    const username = process.env.USERNAME
-    const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
-
-    const path = ENV.VRCX_SQLITE_FILEPATH || defaultPath
-    const database = new DatabaseConstructor(path, {
-      readonly: true,
-    })
+    const database = openDatabase()
 
     const tableName = request.params.tableName
 
-    const tables = this.getTables(database)
+    const tables = listTables(database)
     const tableNames = tables.map((table) => table.name)
 
     if (!tableName) {
       // list tables
-      const tableRecordCounts = this.getTableRecordCounts(database, tables)
+      const tableRecordCounts = getTableRecordCounts(database, tables)
+      database.close()
       await reply.send(tableRecordCounts)
       return
     }
@@ -50,58 +49,19 @@ export class ApiRouter extends BaseRouter {
     const page = request.query.page ?? 1
     const limit = request.query.limit ?? 10
     if (page < 1 || limit < 1) {
+      database.close()
       await reply.send({ error: 'Invalid page or limit' })
       return
     }
     if (!tableNames.includes(tableName)) {
+      database.close()
       await reply.send({ error: 'Table not found' })
       return
     }
-    const records = this.getRecords(database, tableName, page, limit)
+    const records = getRecords(database, tableName, page, limit)
 
     database.close()
 
     await reply.send(records)
-  }
-
-  private getTables(database: DatabaseConstructor.Database) {
-    return database
-      .prepare<
-        unknown[],
-        {
-          name: string
-        }
-      >(`SELECT name FROM sqlite_master WHERE type='table'`)
-      .all()
-  }
-
-  private getTableRecordCounts(
-    database: DatabaseConstructor.Database,
-    tables: { name: string }[]
-  ) {
-    return tables.map((table) => {
-      const result = database
-        .prepare<
-          unknown[],
-          {
-            count: number
-          }
-        >(`SELECT COUNT(*) AS count FROM ${table.name}`)
-        .get() ?? { count: 0 }
-      return { name: table.name, count: result.count }
-    })
-  }
-
-  private getRecords(
-    database: DatabaseConstructor.Database,
-    tableName: string,
-    page: number,
-    limit: number
-  ) {
-    return database
-      .prepare(
-        `SELECT * FROM ${tableName} ORDER BY rowid DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`
-      )
-      .all()
   }
 }

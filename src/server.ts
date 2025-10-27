@@ -4,6 +4,8 @@ import cors from '@fastify/cors'
 import { Logger } from '@book000/node-utils'
 import { ApiRouter } from './endpoints/api'
 import { RootRouter } from './endpoints/root'
+import { registerWebSocketRoutes } from './websocket'
+
 /**
  * Fastify アプリケーションを構築する
  *
@@ -18,6 +20,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
   })
+
+  await registerWebSocketRoutes(app)
 
   // routers
   const routers: BaseRouter[] = [new RootRouter(app), new ApiRouter(app)]
