@@ -1,4 +1,4 @@
-/* global Vue, Vuetify */
+/* global Vue, Vuetify, WebSocket */
 
 const { createApp } = Vue
 const { createVuetify } = Vuetify
@@ -15,6 +15,14 @@ const app = createApp({
       apiBaseUrl: undefined,
       tab: 1,
       userId: '',
+      defaultLimit: 1000,
+      feedWebSocket: undefined,
+      gamelogWebSocket: undefined,
+      feedWebSocketConnected: false,
+      gamelogWebSocketConnected: false,
+      feedReconnectTimer: undefined,
+      gamelogReconnectTimer: undefined,
+      pollingInterval: undefined,
       headers: [
         { title: '', key: 'data-table-expand' },
         {
@@ -77,16 +85,18 @@ const app = createApp({
     }
 
     await this.fetchUserId()
-    this.fetchRecords(1, 1000)
-
-    setInterval(() => {
-      this.fetchRecords(1, 1000)
-    }, 1000 * 10)
+    await this.fetchRecords(1, this.defaultLimit)
+    this.startPolling()
+    this.setupWebSockets()
+  },
+  beforeUnmount() {
+    this.stopPolling()
+    this.teardownFeedWebSocket()
+    this.teardownGameLogWebSocket()
   },
   watch: {
     tab() {
-      console.log('tab', this.tab)
-      this.fetchRecords(1, 1000)
+      this.fetchRecords(1, this.defaultLimit)
     },
   },
   computed: {
@@ -133,6 +143,342 @@ const app = createApp({
     },
   },
   methods: {
+    setupWebSockets() {
+      if (!('WebSocket' in globalThis)) {
+        this.feedWebSocketConnected = false
+        this.gamelogWebSocketConnected = false
+        this.updatePollingState()
+        return
+      }
+      this.setupFeedWebSocket()
+      this.setupGameLogWebSocket()
+      this.updatePollingState()
+    },
+    setupFeedWebSocket() {
+      this.teardownFeedWebSocket()
+      try {
+        const url = new URL('/ws/feed', this.apiBaseUrl)
+        url.protocol = url.protocol.replace('http', 'ws')
+        url.searchParams.set('limit', `${this.defaultLimit}`)
+        const socket = new WebSocket(url)
+        socket.addEventListener('open', () => {
+          this.feedWebSocketConnected = true
+          this.updatePollingState()
+        })
+        socket.addEventListener('message', (event) => {
+          this.handleFeedWebSocketMessage(event)
+        })
+        socket.addEventListener('close', () => {
+          this.feedWebSocketConnected = false
+          this.feedWebSocket = undefined
+          this.updatePollingState()
+          this.scheduleFeedReconnect()
+        })
+        socket.addEventListener('error', () => {
+          socket.close()
+        })
+        this.feedWebSocket = socket
+      } catch (error) {
+        console.error('Failed to open feed WebSocket', error)
+        this.feedWebSocketConnected = false
+        this.feedWebSocket = undefined
+        this.updatePollingState()
+        this.scheduleFeedReconnect()
+      }
+    },
+    setupGameLogWebSocket() {
+      this.teardownGameLogWebSocket()
+      try {
+        const url = new URL('/ws/gamelog', this.apiBaseUrl)
+        url.protocol = url.protocol.replace('http', 'ws')
+        url.searchParams.set('limit', `${this.defaultLimit}`)
+        const socket = new WebSocket(url)
+        socket.addEventListener('open', () => {
+          this.gamelogWebSocketConnected = true
+          this.updatePollingState()
+        })
+        socket.addEventListener('message', (event) => {
+          this.handleGameLogWebSocketMessage(event)
+        })
+        socket.addEventListener('close', () => {
+          this.gamelogWebSocketConnected = false
+          this.gamelogWebSocket = undefined
+          this.updatePollingState()
+          this.scheduleGameLogReconnect()
+        })
+        socket.addEventListener('error', () => {
+          socket.close()
+        })
+        this.gamelogWebSocket = socket
+      } catch (error) {
+        console.error('Failed to open gamelog WebSocket', error)
+        this.gamelogWebSocketConnected = false
+        this.gamelogWebSocket = undefined
+        this.updatePollingState()
+        this.scheduleGameLogReconnect()
+      }
+    },
+    scheduleFeedReconnect() {
+      if (this.feedReconnectTimer !== undefined) {
+        return
+      }
+      this.feedReconnectTimer = setTimeout(() => {
+        this.feedReconnectTimer = undefined
+        this.setupFeedWebSocket()
+      }, 5000)
+    },
+    scheduleGameLogReconnect() {
+      if (this.gamelogReconnectTimer !== undefined) {
+        return
+      }
+      this.gamelogReconnectTimer = setTimeout(() => {
+        this.gamelogReconnectTimer = undefined
+        this.setupGameLogWebSocket()
+      }, 5000)
+    },
+    teardownFeedWebSocket() {
+      if (this.feedReconnectTimer !== undefined) {
+        clearTimeout(this.feedReconnectTimer)
+        this.feedReconnectTimer = undefined
+      }
+      if (this.feedWebSocket) {
+        try {
+          this.feedWebSocket.close()
+        } catch (error) {
+          console.error('Failed to close feed WebSocket', error)
+        }
+        this.feedWebSocket = undefined
+      }
+      this.feedWebSocketConnected = false
+    },
+    teardownGameLogWebSocket() {
+      if (this.gamelogReconnectTimer !== undefined) {
+        clearTimeout(this.gamelogReconnectTimer)
+        this.gamelogReconnectTimer = undefined
+      }
+      if (this.gamelogWebSocket) {
+        try {
+          this.gamelogWebSocket.close()
+        } catch (error) {
+          console.error('Failed to close gamelog WebSocket', error)
+        }
+        this.gamelogWebSocket = undefined
+      }
+      this.gamelogWebSocketConnected = false
+    },
+    handleFeedWebSocketMessage(event) {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'feed') {
+          this.updateFeedFromWebSocket(data.items)
+        } else if (data.type === 'error') {
+          console.error('Feed WebSocket error:', data.message)
+          this.feedWebSocketConnected = false
+          if (this.feedWebSocket) {
+            this.feedWebSocket.close()
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse feed WebSocket message', error)
+      }
+    },
+    handleGameLogWebSocketMessage(event) {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'gamelog') {
+          this.updateGameLogFromWebSocket(data.items)
+        } else if (data.type === 'error') {
+          console.error('Gamelog WebSocket error:', data.message)
+          this.gamelogWebSocketConnected = false
+          if (this.gamelogWebSocket) {
+            this.gamelogWebSocket.close()
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse gamelog WebSocket message', error)
+      }
+    },
+    updateFeedFromWebSocket(items) {
+      const loadingItems = []
+      for (const [type, records] of Object.entries(items)) {
+        loadingItems.push(...this.buildFeedItems(type, records))
+      }
+      loadingItems.sort((a, b) => {
+        return b.created_at - a.created_at
+      })
+      this.feed.loadingItems = loadingItems
+      this.feed.items = loadingItems
+    },
+    updateGameLogFromWebSocket(items) {
+      const loadingItems = []
+      for (const [type, records] of Object.entries(items)) {
+        loadingItems.push(...this.buildGameLogItems(type, records))
+      }
+      loadingItems.sort((a, b) => {
+        return b.created_at - a.created_at
+      })
+      this.gamelog.loadingItems = loadingItems
+      this.gamelog.items = loadingItems
+    },
+    buildFeedItems(type, records) {
+      const normalizedType = String(type)
+      const entries = Array.isArray(records) ? records : []
+      const items = []
+      for (const record of entries) {
+        const createdAt = new Date(record.created_at)
+        if (Number.isNaN(createdAt.getTime())) {
+          continue
+        }
+
+        switch (normalizedType) {
+          case 'gps': {
+            items.push({
+              id: `gps-${record.id}`,
+              created_at: createdAt,
+              type: 'gps',
+              display_name: record.display_name,
+              details: this.getWorldName(record),
+              data: record,
+            })
+            break
+          }
+          case 'status': {
+            items.push({
+              id: `status-${record.id}`,
+              created_at: createdAt,
+              type: 'status',
+              display_name: record.display_name,
+              details: `${record.status_description} (${record.status})`,
+              data: record,
+            })
+            break
+          }
+          case 'bio': {
+            items.push({
+              id: `bio-${record.id}`,
+              created_at: createdAt,
+              type: 'bio',
+              display_name: record.display_name,
+              details: record.bio,
+              data: record,
+            })
+            break
+          }
+          case 'avatar': {
+            items.push({
+              id: `avatar-${record.id}`,
+              created_at: createdAt,
+              type: 'avatar',
+              display_name: record.display_name,
+              details: record.avatar_name,
+              data: record,
+            })
+            break
+          }
+          case 'online_offline': {
+            const subtype = (record.type || 'online_offline').toLowerCase()
+            items.push({
+              id: `${subtype}-${record.id}`,
+              created_at: createdAt,
+              type: subtype,
+              display_name: record.display_name,
+              details: this.getWorldName(record),
+              data: record,
+            })
+            break
+          }
+          default: {
+            break
+          }
+        }
+      }
+      return items
+    },
+    buildGameLogItems(type, records) {
+      const normalizedType = String(type)
+      const entries = Array.isArray(records) ? records : []
+      const items = []
+      for (const record of entries) {
+        const createdAt = new Date(record.created_at)
+        if (Number.isNaN(createdAt.getTime())) {
+          continue
+        }
+        switch (normalizedType) {
+          case 'location': {
+            items.push({
+              id: `location-${record.id}`,
+              created_at: createdAt,
+              type: 'location',
+              display_name: '',
+              details: this.getWorldName(record),
+              data: record,
+            })
+            break
+          }
+          case 'join_leave': {
+            const subtype = (record.type || 'join_leave').toLowerCase()
+            items.push({
+              id: `${subtype}-${record.id}`,
+              created_at: createdAt,
+              type: subtype,
+              display_name: record.display_name,
+              details: '',
+              data: record,
+            })
+            break
+          }
+          case 'video_play': {
+            items.push({
+              id: `video_play-${record.id}`,
+              created_at: createdAt,
+              type: 'video_play',
+              display_name: record.display_name,
+              details: record.video_name,
+              data: record,
+            })
+            break
+          }
+          case 'event': {
+            items.push({
+              id: `event-${record.id}`,
+              created_at: createdAt,
+              type: 'event',
+              display_name: '',
+              details: record.data,
+              data: record,
+            })
+            break
+          }
+          default: {
+            break
+          }
+        }
+      }
+      return items
+    },
+    startPolling() {
+      if (this.pollingInterval !== undefined) {
+        return
+      }
+      this.pollingInterval = setInterval(() => {
+        this.fetchRecords(1, this.defaultLimit).catch((error) => {
+          console.error('Failed to fetch records during polling', error)
+        })
+      }, 10_000)
+    },
+    stopPolling() {
+      if (this.pollingInterval !== undefined) {
+        clearInterval(this.pollingInterval)
+        this.pollingInterval = undefined
+      }
+    },
+    updatePollingState() {
+      if (this.feedWebSocketConnected && this.gamelogWebSocketConnected) {
+        this.stopPolling()
+      } else {
+        this.startPolling()
+      }
+    },
     async fetchUserId() {
       const url = new URL('/api/configs', this.apiBaseUrl)
       const response = await fetch(url)
@@ -140,13 +486,19 @@ const app = createApp({
 
       const key = 'config:lastuserloggedin'
       const config = data.find((item) => item.key === key)
-      this.userId = config.value
+      this.userId = config ? config.value : ''
     },
     async fetchRecords(page, limit) {
       if (this.tab === 1) {
-        this.fetchAllFeed(page, limit)
+        if (this.feedWebSocketConnected) {
+          return
+        }
+        await this.fetchAllFeed(page, limit)
       } else if (this.tab === 2) {
-        this.fetchAllGameLog(page, limit)
+        if (this.gamelogWebSocketConnected) {
+          return
+        }
+        await this.fetchAllGameLog(page, limit)
       }
     },
     async fetchAllFeed(page, limit) {
@@ -169,105 +521,60 @@ const app = createApp({
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.feed.loadingItems.push({
-          id: `${type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type,
-          display_name: item.display_name,
-          details: this.getWorldName(item),
-          data: item,
-        })
-      }
+      this.feed.loadingItems.push(...this.buildFeedItems(type, items))
     },
     async fetchStatusFeed(page, limit) {
       const type = 'status'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.feed.loadingItems.push({
-          id: `${type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type,
-          display_name: item.display_name,
-          details: `${item.status_description} (${item.status})`,
-          data: item,
-        })
-      }
+      this.feed.loadingItems.push(...this.buildFeedItems(type, items))
     },
     async fetchBioFeed(page, limit) {
       const type = 'bio'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.feed.loadingItems.push({
-          id: `${type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type,
-          display_name: item.display_name,
-          details: item.bio,
-          data: item,
-        })
-      }
+      this.feed.loadingItems.push(...this.buildFeedItems(type, items))
     },
     async fetchAvatarFeed(page, limit) {
       const type = 'avatar'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.feed.loadingItems.push({
-          id: `${type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type,
-          display_name: item.display_name,
-          details: item.avatar_name,
-          data: item,
-        })
-      }
+      this.feed.loadingItems.push(...this.buildFeedItems(type, items))
     },
     async fetchOnlineOfflineFeed(page, limit) {
       const type = 'online_offline'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.feed.loadingItems.push({
-          id: `${item.type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type: item.type.toLowerCase(),
-          display_name: item.display_name,
-          details: this.getWorldName(item),
-          data: item,
-        })
-      }
+      this.feed.loadingItems.push(...this.buildFeedItems(type, items))
     },
     async fetchAllGameLog(page, limit) {
       this.gamelog.loadingItems = []
@@ -287,85 +594,46 @@ const app = createApp({
       const type = 'location'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.gamelog.loadingItems.push({
-          id: `${type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type,
-          display_name: '',
-          details: this.getWorldName(item),
-          data: item,
-        })
-      }
+      this.gamelog.loadingItems.push(...this.buildGameLogItems(type, items))
     },
     async fetchJoinLeaveLog(page, limit) {
       const type = 'join_leave'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.gamelog.loadingItems.push({
-          id: `${item.type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type: item.type.toLowerCase(),
-          display_name: item.display_name,
-          details: '',
-          data: item,
-        })
-      }
+      this.gamelog.loadingItems.push(...this.buildGameLogItems(type, items))
     },
-    // fetchPortalSpawnLog: ログみたことがなくてわからない
     async fetchVideoPlayLog(page, limit) {
       const type = 'video_play'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.gamelog.loadingItems.push({
-          id: `${type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type,
-          display_name: item.display_name,
-          details: item.video_name,
-          data: item,
-        })
-      }
+      this.gamelog.loadingItems.push(...this.buildGameLogItems(type, items))
     },
-    // fetchResourceLoadLog: ログみたことがなくてわからない
     async fetchEventLog(page, limit) {
       const type = 'event'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
+      url.searchParams.append('limit', limit || this.defaultLimit)
       url.searchParams.append('page', page || 1)
       const response = await fetch(url)
 
       const items = await response.json()
-      for (const item of items) {
-        this.gamelog.loadingItems.push({
-          id: `${type}-${item.id}`,
-          created_at: new Date(item.created_at),
-          type,
-          display_name: '',
-          details: item.data,
-          data: item,
-        })
-      }
+      this.gamelog.loadingItems.push(...this.buildGameLogItems(type, items))
     },
-    // fetchExternalLog: ログみたことがなくてわからない
     getWorldName(item) {
       if (item.world_name) {
         return item.world_name
