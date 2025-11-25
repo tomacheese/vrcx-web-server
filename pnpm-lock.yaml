@@ -24,8 +24,8 @@ importers:
         specifier: 24.10.1
         version: 24.10.1
       better-sqlite3:
-        specifier: 12.4.5
-        version: 12.4.5
+        specifier: 12.4.6
+        version: 12.4.6
       eslint:
         specifier: 9.39.1
         version: 9.39.1
@@ -512,8 +512,8 @@ packages:
     resolution: {integrity: sha512-gYjt7OIqdM0PcttNYP2aVrr2G0bMALkBaoehD4BuRGjAOtipg0b6wHg1yNL+s5zSnLZZrGHOw4IrND8CD+3oIQ==}
     hasBin: true
 
-  better-sqlite3@12.4.5:
-    resolution: {integrity: sha512-4NejwX2llfdKYK7Tzwwre/qKzTXiqcbycIagtqMH9oE7Es3LCUGGGXvhw8rWbZ2alx1C/Nh0MeJyYEZKUFs4sw==}
+  better-sqlite3@12.4.6:
+    resolution: {integrity: sha512-gaYt9yqTbQ1iOxLpJA8FPR5PiaHP+jlg8I5EX0Rs2KFwNzhBsF40KzMZS5FwelY7RG0wzaucWdqSAJM3uNCPCg==}
     engines: {node: 20.x || 22.x || 23.x || 24.x || 25.x}
 
   bindings@1.5.0:
@@ -2341,7 +2341,7 @@ snapshots:
 
   baseline-browser-mapping@2.8.28: {}
 
-  better-sqlite3@12.4.5:
+  better-sqlite3@12.4.6:
     dependencies:
       bindings: 1.5.0
       prebuild-install: 7.1.3
