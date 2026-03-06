@@ -28,24 +28,24 @@
     "fix": "run-z fix:prettier,fix:eslint"
   },
   "devDependencies": {
-    "@book000/eslint-config": "1.12.41",
-    "@book000/node-utils": "1.24.37",
+    "@book000/eslint-config": "1.13.12",
+    "@book000/node-utils": "1.24.78",
     "@fastify/cors": "11.2.0",
     "@types/better-sqlite3": "7.6.13",
-    "@types/node": "24.10.9",
+    "@types/node": "24.11.0",
     "better-sqlite3": "12.6.2",
-    "eslint": "9.39.2",
+    "eslint": "10.0.2",
     "eslint-config-standard": "17.1.0",
     "eslint-plugin-import": "2.32.0",
-    "eslint-plugin-n": "17.23.2",
+    "eslint-plugin-n": "17.24.0",
     "eslint-plugin-promise": "7.2.1",
-    "fastify": "5.7.1",
+    "fastify": "5.7.4",
     "prettier": "3.8.1",
     "run-z": "2.1.0",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   },
-  "packageManager": "pnpm@10.28.1+sha512.7d7dbbca9e99447b7c3bf7a73286afaaf6be99251eb9498baefa7d406892f67b879adb3a1d7e687fc4ccc1a388c7175fbaae567a26ab44d1067b54fcb0d6a316",
+  "packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017",
   "pnpm": {
     "onlyBuiltDependencies": [
       "better-sqlite3",
