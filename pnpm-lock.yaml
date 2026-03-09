@@ -21,8 +21,8 @@ importers:
         specifier: 7.6.13
         version: 7.6.13
       '@types/node':
-        specifier: 24.11.0
-        version: 24.11.0
+        specifier: 24.12.0
+        version: 24.12.0
       better-sqlite3:
         specifier: 12.6.2
         version: 12.6.2
@@ -334,8 +334,8 @@ packages:
   '@types/json5@0.0.29':
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
 
-  '@types/node@24.11.0':
-    resolution: {integrity: sha512-fPxQqz4VTgPI/IQ+lj9r0h+fDR66bzoeMGHp8ASee+32OSGIkeASsoZuJixsQoVef1QJbeubcPBxKk22QVoWdw==}
+  '@types/node@24.12.0':
+    resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
 
   '@types/triple-beam@1.3.5':
     resolution: {integrity: sha512-6WaYesThRMCl19iryMYP7/x2OVgCtbIVflDGFpWnb9irXI3UjYE4AzmYuiUKY1AJstGijoY+MgUszMgRxIYTYw==}
@@ -2109,7 +2109,7 @@ snapshots:
 
   '@types/better-sqlite3@7.6.13':
     dependencies:
-      '@types/node': 24.11.0
+      '@types/node': 24.12.0
 
   '@types/esrecurse@4.3.1': {}
 
@@ -2119,7 +2119,7 @@ snapshots:
 
   '@types/json5@0.0.29': {}
 
-  '@types/node@24.11.0':
+  '@types/node@24.12.0':
     dependencies:
       undici-types: 7.16.0
 
