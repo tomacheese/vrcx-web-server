@@ -11,7 +11,6 @@ RUN apk update && \
   echo "Asia/Tokyo" > /etc/timezone && \
   apk del tzdata && \
   npm install -g corepack@latest && \
-  pnpm approve-builds && \
   corepack enable
 
 WORKDIR /app
@@ -25,7 +24,6 @@ COPY src src
 COPY view view
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --offline && \
-  pnpm approve-builds && \
   pnpm rebuild
 
 ENV NODE_ENV=production
