@@ -1,3 +1,8 @@
+/* eslint-disable unicorn/no-this-outside-of-class --
+   Vue Options API コンポーネントでは `this` バインディングが Vue ランタイムによって解決されるため、
+   ESLint の静的解析では認識できない。クラスベースや Composition API への大規模リファクタリングを
+   回避するため、ファイル全体で無効化する。
+*/
 /* global Vue, Vuetify */
 
 const { createApp } = Vue
