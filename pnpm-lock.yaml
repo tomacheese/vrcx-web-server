@@ -539,8 +539,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.10.41:
-    resolution: {integrity: sha512-WwS7MHhqGHHlaVsqRZnhvCEMS0owDX+SxRlve7JkuH7My1Ara3ZriTmCQupPfYjxMZ8I/tgxtJYr2t7taHaH4A==}
+  baseline-browser-mapping@2.10.42:
+    resolution: {integrity: sha512-c/jurFrDLyui7o1J86yLkRu4LMsTYcBohveus7/I2Hzdn9KIP2bdJPTue/lR1KH46enoPbD77GKeSYNdyPoD3Q==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -712,8 +712,8 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
-  electron-to-chromium@1.5.385:
-    resolution: {integrity: sha512-78sa/M08MNAYHQfjoWMvOlKQqZ0ElhSm/L5HNUc96VZ3b+KvDVnngFm8sYQy0XrhTRgAhggHr5abA7yTvRdo4Q==}
+  electron-to-chromium@1.5.387:
+    resolution: {integrity: sha512-TaxwufTFDufvPEoXdhwVrA3UdFWBeWGkYoJ1K8ldF1xe6gKfth6iRNS5lTQ5JPNOHdGQm8PT1QYKUqFLCiUefQ==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -1769,8 +1769,8 @@ packages:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
 
-  toad-cache@3.7.1:
-    resolution: {integrity: sha512-5DXWzE4Vz7xNHsv+xQ+MGfJYyC78Aok3tEr0MNwHoRf7vZnga1mQXZ4/Nsodld4VR6Wd+VhfmqnNrsRJyYPfrQ==}
+  toad-cache@3.7.4:
+    resolution: {integrity: sha512-m1TdR/rvT7kgGJZhspNtXdsdYk0fddFpJJFlG5s+UkPFo6lkLoZ3YLOaovPYjq1R75NP5JfeTlSHaOsE09peCg==}
     engines: {node: '>=20'}
 
   tree-kill@1.2.2:
@@ -2062,7 +2062,7 @@ snapshots:
   '@fastify/cors@11.2.0':
     dependencies:
       fastify-plugin: 5.1.0
-      toad-cache: 3.7.1
+      toad-cache: 3.7.4
 
   '@fastify/error@4.2.0': {}
 
@@ -2402,7 +2402,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.10.41: {}
+  baseline-browser-mapping@2.10.42: {}
 
   better-sqlite3@12.11.1:
     dependencies:
@@ -2430,9 +2430,9 @@ snapshots:
 
   browserslist@4.28.4:
     dependencies:
-      baseline-browser-mapping: 2.10.41
+      baseline-browser-mapping: 2.10.42
       caniuse-lite: 1.0.30001800
-      electron-to-chromium: 1.5.385
+      electron-to-chromium: 1.5.387
       node-releases: 2.0.50
       update-browserslist-db: 1.2.3(browserslist@4.28.4)
 
@@ -2570,7 +2570,7 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  electron-to-chromium@1.5.385: {}
+  electron-to-chromium@1.5.387: {}
 
   emoji-regex@10.6.0: {}
 
@@ -2992,7 +2992,7 @@ snapshots:
       rfdc: 1.4.1
       secure-json-parse: 4.1.0
       semver: 7.8.5
-      toad-cache: 3.7.1
+      toad-cache: 3.7.4
 
   fastq@1.20.1:
     dependencies:
@@ -3880,7 +3880,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.5)
       picomatch: 4.0.5
 
-  toad-cache@3.7.1: {}
+  toad-cache@3.7.4: {}
 
   tree-kill@1.2.2: {}
 
