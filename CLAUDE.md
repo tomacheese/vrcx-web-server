@@ -61,6 +61,20 @@ pnpm fix
 ## 実装パターン
 - `BaseRouter` を継承して新しいエンドポイントを追加する
 - データベース接続は `better-sqlite3` を使用し、原則 readonly でオープンする
+- VRCX データベースのパスは環境変数 `VRCX_SQLITE_FILEPATH` で指定する。未指定時は Windows 標準パス (`C:\Users\<USERNAME>\AppData\Roaming\VRCX\VRCX.sqlite3`) にフォールバックする
+- 環境変数は `src/environments.ts` の `ENV` オブジェクト経由で参照する（`API_HOST`, `API_PORT`, `VRCX_SQLITE_FILEPATH`）
+
+## テスト
+- 現在テストコードは未実装。追加する場合は Vitest 等の現代的なフレームワークを検討する
+- 変更の検証は `pnpm lint`（Prettier / ESLint / tsc）と手動での動作確認で行う
+
+## セキュリティ / 機密情報
+- API キー・パスワード・DB パス等の機密情報をコードに直接記述しない。`ENV` 経由で取得する
+- 機密情報を含むファイルをコミットしない
+- ログに個人情報や認証情報を出力しない
+
+## ドキュメント更新ルール
+- 開発コマンド・環境変数・アーキテクチャを変更した場合は、この CLAUDE.md と `.github/copilot-instructions.md` の該当箇所を更新する
 
 ## 作業チェックリスト
 
