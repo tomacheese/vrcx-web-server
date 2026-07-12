@@ -115,7 +115,8 @@ const app = createApp({
               .toLowerCase()
               .includes(this.feed.search.toLowerCase())
           })
-      } else if (this.tab === 2) {
+      }
+      if (this.tab === 2) {
         return this.gamelog.items
           .filter((item) => {
             return this.gamelog.selectTypes.includes(item.type)
@@ -162,12 +163,11 @@ const app = createApp({
         this.fetchBioFeed(page, limit),
         this.fetchAvatarFeed(page, limit),
         this.fetchOnlineOfflineFeed(page, limit),
-      ]).then(() => {
-        this.feed.loadingItems.sort((a, b) => {
-          return b.created_at - a.created_at
-        })
-        this.feed.items = this.feed.loadingItems
+      ])
+      this.feed.loadingItems.sort((a, b) => {
+        return b.created_at - a.created_at
       })
+      this.feed.items = this.feed.loadingItems
     },
     async fetchGpsFeed(page, limit) {
       const type = 'gps'
@@ -281,12 +281,11 @@ const app = createApp({
         this.fetchJoinLeaveLog(page, limit),
         this.fetchVideoPlayLog(page, limit),
         this.fetchEventLog(page, limit),
-      ]).then(() => {
-        this.gamelog.loadingItems.sort((a, b) => {
-          return b.created_at - a.created_at
-        })
-        this.gamelog.items = this.gamelog.loadingItems
+      ])
+      this.gamelog.loadingItems.sort((a, b) => {
+        return b.created_at - a.created_at
       })
+      this.gamelog.items = this.gamelog.loadingItems
     },
     async fetchLocationLog(page, limit) {
       const type = 'location'
@@ -374,13 +373,14 @@ const app = createApp({
     getWorldName(item) {
       if (item.world_name) {
         return item.world_name
-      } else if (item.location === 'private') {
-        return 'Private'
-      } else if (item.location === 'traveling') {
-        return 'Traveling'
-      } else {
-        return 'Unknown'
       }
+      if (item.location === 'private') {
+        return 'Private'
+      }
+      if (item.location === 'traveling') {
+        return 'Traveling'
+      }
+      return 'Unknown'
     },
     formatDate(date) {
       return date.toLocaleString('ja-JP', {

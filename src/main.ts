@@ -9,7 +9,7 @@ async function main() {
 
   const app = await buildApp()
   const host = ENV.API_HOST
-  const port = ENV.API_PORT ? Number.parseInt(ENV.API_PORT, 10) : 8000
+  const port = ENV.API_PORT ? Number(ENV.API_PORT) : 8000
   app.listen({ host, port }, (error, address) => {
     if (error) {
       logger.error('❌ Fastify.listen error', error)
