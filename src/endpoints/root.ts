@@ -28,7 +28,7 @@ export class RootRouter extends BaseRouter {
       'script.js': 'application/javascript',
     }
 
-    if (mapping[path]) {
+    if (Object.hasOwn(mapping, path)) {
       reply.header('Content-Type', mapping[path])
     }
 
