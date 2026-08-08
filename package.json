@@ -33,7 +33,7 @@
     "@fastify/cors": "11.3.0",
     "@types/better-sqlite3": "9.6.0",
     "@types/node": "24.13.3",
-    "better-sqlite3": "13.0.2",
+    "better-sqlite3": "13.0.3",
     "eslint": "10.8.0",
     "eslint-config-standard": "17.1.0",
     "eslint-plugin-import": "2.32.0",
