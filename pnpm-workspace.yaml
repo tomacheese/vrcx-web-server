@@ -1,6 +1,5 @@
 allowBuilds:
   better-sqlite3: false
   esbuild: true
-confirmModulesPurge: false
 minimumReleaseAgeExclude:
   - '@book000/*'
