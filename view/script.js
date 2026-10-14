@@ -170,13 +170,13 @@ const app = createApp({
         this.feed.items = this.feed.loadingItems
       })
     },
-    async fetchGpsFeed(page, limit) {
+    async fetchGpsFeed(page = 1, limit = 1000) {
       const type = 'gps'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -191,13 +191,13 @@ const app = createApp({
         })
       }
     },
-    async fetchStatusFeed(page, limit) {
+    async fetchStatusFeed(page = 1, limit = 1000) {
       const type = 'status'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -212,13 +212,13 @@ const app = createApp({
         })
       }
     },
-    async fetchBioFeed(page, limit) {
+    async fetchBioFeed(page = 1, limit = 1000) {
       const type = 'bio'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -233,13 +233,13 @@ const app = createApp({
         })
       }
     },
-    async fetchAvatarFeed(page, limit) {
+    async fetchAvatarFeed(page = 1, limit = 1000) {
       const type = 'avatar'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -254,13 +254,13 @@ const app = createApp({
         })
       }
     },
-    async fetchOnlineOfflineFeed(page, limit) {
+    async fetchOnlineOfflineFeed(page = 1, limit = 1000) {
       const type = 'online_offline'
       const pathUserId = this.userId.replaceAll(/[_-]/g, '')
       const path = `/api/${pathUserId}_feed_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -289,12 +289,12 @@ const app = createApp({
         this.gamelog.items = this.gamelog.loadingItems
       })
     },
-    async fetchLocationLog(page, limit) {
+    async fetchLocationLog(page = 1, limit = 1000) {
       const type = 'location'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -309,12 +309,12 @@ const app = createApp({
         })
       }
     },
-    async fetchJoinLeaveLog(page, limit) {
+    async fetchJoinLeaveLog(page = 1, limit = 1000) {
       const type = 'join_leave'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -330,12 +330,12 @@ const app = createApp({
       }
     },
     // fetchPortalSpawnLog: ログみたことがなくてわからない
-    async fetchVideoPlayLog(page, limit) {
+    async fetchVideoPlayLog(page = 1, limit = 1000) {
       const type = 'video_play'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -351,12 +351,12 @@ const app = createApp({
       }
     },
     // fetchResourceLoadLog: ログみたことがなくてわからない
-    async fetchEventLog(page, limit) {
+    async fetchEventLog(page = 1, limit = 1000) {
       const type = 'event'
       const path = `/api/gamelog_${type}`
       const url = new URL(path, this.apiBaseUrl)
-      url.searchParams.append('limit', limit || 1000)
-      url.searchParams.append('page', page || 1)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
       const response = await fetch(url)
 
       const items = await response.json()
@@ -379,10 +379,7 @@ const app = createApp({
       if (item.location === 'private') {
         return 'Private'
       }
-      if (item.location === 'traveling') {
-        return 'Traveling'
-      }
-      return 'Unknown'
+      return item.location === 'traveling' ? 'Traveling' : 'Unknown'
     },
     formatDate(date) {
       return date.toLocaleString('ja-JP', {
