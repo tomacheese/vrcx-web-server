@@ -34,6 +34,37 @@ export class ApiRouter extends BaseRouter {
       readonly: true,
     })
 
+    // 早期 return や例外が発生しても接続を確実に閉じるため、
+    // DB を使う処理はすべて try ブロック内で完結させ、応答の送信は finally の後に行う
+    let response: unknown
+    try {
+      response = this.handleRequest(database, request)
+    } finally {
+      database.close()
+    }
+
+    await reply.send(response)
+  }
+
+  /**
+   * リクエストに応じてテーブル一覧またはレコード一覧を取得する。
+   * データベース接続のクローズは呼び出し元が行う。
+   * @param database オープン済みのデータベース接続
+   * @param request リクエスト
+   * @returns 応答として返す値
+   */
+  private handleRequest(
+    database: DatabaseConstructor.Database,
+    request: FastifyRequest<{
+      Params: {
+        tableName?: string
+      }
+      Querystring: {
+        page?: number
+        limit?: number
+      }
+    }>
+  ): unknown {
     const tableName = request.params.tableName
 
     const tables = this.getTables(database)
@@ -41,27 +72,18 @@ export class ApiRouter extends BaseRouter {
 
     if (!tableName) {
       // list tables
-      const tableRecordCounts = this.getTableRecordCounts(database, tables)
-      await reply.send(tableRecordCounts)
-      return
+      return this.getTableRecordCounts(database, tables)
     }
 
     // list records
     const page = request.query.page ?? 1
     const limit = request.query.limit ?? 10
     if (page < 1 || limit < 1) {
-      await reply.send({ error: 'Invalid page or limit' })
-      return
+      return { error: 'Invalid page or limit' }
     }
-    if (!tableNames.includes(tableName)) {
-      await reply.send({ error: 'Table not found' })
-      return
-    }
-    const records = this.getRecords(database, tableName, page, limit)
-
-    database.close()
-
-    await reply.send(records)
+    return tableNames.includes(tableName)
+      ? this.getRecords(database, tableName, page, limit)
+      : { error: 'Table not found' }
   }
 
   private getTables(database: DatabaseConstructor.Database) {
