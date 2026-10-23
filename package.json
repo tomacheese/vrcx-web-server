@@ -28,7 +28,7 @@
     "fix": "run-z fix:prettier,fix:eslint"
   },
   "devDependencies": {
-    "@book000/eslint-config": "1.16.102",
+    "@book000/eslint-config": "1.16.103",
     "@book000/node-utils": "1.25.169",
     "@fastify/cors": "11.3.1",
     "@types/better-sqlite3": "9.6.0",
