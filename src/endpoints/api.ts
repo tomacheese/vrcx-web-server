@@ -103,31 +103,50 @@ export class ApiRouter extends BaseRouter {
       readonly: true,
     })
 
+    // 早期 return や例外が発生しても接続を確実に閉じるため、
+    // DB を使う処理はすべて try ブロック内で完結させ、応答の送信は finally の後に行う
+    let response: unknown
+    try {
+      response = this.handleRequest(
+        database,
+        tableName,
+        request.query.limit,
+        offset
+      )
+    } finally {
+      database.close()
+    }
+
+    await reply.send(response)
+  }
+
+  /**
+   * リクエストに応じてテーブル一覧またはレコード一覧を取得する。
+   * データベース接続のクローズは呼び出し元が行う。
+   * @param database オープン済みのデータベース接続
+   * @param tableName テーブル名。未指定の場合はテーブル一覧を返す
+   * @param limit 1 ページあたりの件数（検証済み）
+   * @param offset 取得開始位置（検証済み）
+   * @returns 応答として返す値
+   */
+  private handleRequest(
+    database: DatabaseConstructor.Database,
+    tableName: string | undefined,
+    limit: number,
+    offset: number
+  ): unknown {
     const tables = this.getTables(database)
     const tableNames = tables.map((table) => table.name)
 
     if (!tableName) {
       // list tables
-      const tableRecordCounts = this.getTableRecordCounts(database, tables)
-      await reply.send(tableRecordCounts)
-      return
+      return this.getTableRecordCounts(database, tables)
     }
 
     // list records
-    if (!tableNames.includes(tableName)) {
-      await reply.send({ error: 'Table not found' })
-      return
-    }
-    const records = this.getRecords(
-      database,
-      tableName,
-      request.query.limit,
-      offset
-    )
-
-    database.close()
-
-    await reply.send(records)
+    return tableNames.includes(tableName)
+      ? this.getRecords(database, tableName, limit, offset)
+      : { error: 'Table not found' }
   }
 
   private getTables(database: DatabaseConstructor.Database) {
