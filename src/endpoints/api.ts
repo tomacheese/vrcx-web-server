@@ -3,11 +3,66 @@ import { BaseRouter } from '.'
 import DatabaseConstructor from 'better-sqlite3'
 import { ENV } from '../environments'
 
+/**
+ * 1 リクエストで取得できるレコード数の上限
+ */
+const MAX_LIMIT = 1000
+
+/**
+ * SQL 識別子をダブルクオートで囲み、内部のダブルクオートをエスケープする
+ *
+ * @param name 識別子（テーブル名）
+ * @returns クオート済みの識別子
+ */
+function quoteIdentifier(name: string): string {
+  return `"${name.replaceAll('"', '""')}"`
+}
+
+/**
+ * page と limit から OFFSET 値を算出する
+ *
+ * スキーマ検証だけでは Infinity が通過するため、ここで安全な整数と範囲を再検証する。
+ *
+ * @param page ページ番号（1 始まり）
+ * @param limit 1 ページあたりの件数
+ * @returns OFFSET 値。page / limit が不正な場合は null
+ */
+function calculateOffset(page: number, limit: number): number | null {
+  if (!Number.isSafeInteger(page) || !Number.isSafeInteger(limit)) {
+    return null
+  }
+  if (page < 1 || limit < 1 || limit > MAX_LIMIT) {
+    return null
+  }
+  const offset = (page - 1) * limit
+  return Number.isSafeInteger(offset) ? offset : null
+}
+
 export class ApiRouter extends BaseRouter {
   async init(): Promise<void> {
     await this.fastify.register(
       (fastify, _, done) => {
-        fastify.get('/:tableName', this.routeGet.bind(this))
+        fastify.get(
+          '/:tableName',
+          {
+            schema: {
+              querystring: {
+                type: 'object',
+                properties: {
+                  page: { type: 'integer', minimum: 1, default: 1 },
+                  limit: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: MAX_LIMIT,
+                    default: 10,
+                  },
+                },
+              },
+            },
+            attachValidation: true,
+          },
+          this.routeGet.bind(this)
+        )
         done()
       },
       { prefix: '/api' }
@@ -20,12 +75,26 @@ export class ApiRouter extends BaseRouter {
         tableName?: string
       }
       Querystring: {
-        page?: number
-        limit?: number
+        page: number
+        limit: number
       }
     }>,
     reply: FastifyReply
   ): Promise<void> {
+    const tableName = request.params.tableName
+
+    let offset = 0
+    if (tableName) {
+      const validatedOffset = request.validationError
+        ? null
+        : calculateOffset(request.query.page, request.query.limit)
+      if (validatedOffset === null) {
+        await reply.code(400).send({ error: 'Invalid page or limit' })
+        return
+      }
+      offset = validatedOffset
+    }
+
     const username = process.env.USERNAME
     const defaultPath = `C:\\Users\\${username}\\AppData\\Roaming\\VRCX\\VRCX.sqlite3`
 
@@ -33,8 +102,6 @@ export class ApiRouter extends BaseRouter {
     const database = new DatabaseConstructor(path, {
       readonly: true,
     })
-
-    const tableName = request.params.tableName
 
     const tables = this.getTables(database)
     const tableNames = tables.map((table) => table.name)
@@ -47,17 +114,16 @@ export class ApiRouter extends BaseRouter {
     }
 
     // list records
-    const page = request.query.page ?? 1
-    const limit = request.query.limit ?? 10
-    if (page < 1 || limit < 1) {
-      await reply.send({ error: 'Invalid page or limit' })
-      return
-    }
     if (!tableNames.includes(tableName)) {
       await reply.send({ error: 'Table not found' })
       return
     }
-    const records = this.getRecords(database, tableName, page, limit)
+    const records = this.getRecords(
+      database,
+      tableName,
+      request.query.limit,
+      offset
+    )
 
     database.close()
 
@@ -86,7 +152,7 @@ export class ApiRouter extends BaseRouter {
           {
             count: number
           }
-        >(`SELECT COUNT(*) AS count FROM ${table.name}`)
+        >(`SELECT COUNT(*) AS count FROM ${quoteIdentifier(table.name)}`)
         .get() ?? { count: 0 }
       return { name: table.name, count: result.count }
     })
@@ -95,13 +161,13 @@ export class ApiRouter extends BaseRouter {
   private getRecords(
     database: DatabaseConstructor.Database,
     tableName: string,
-    page: number,
-    limit: number
+    limit: number,
+    offset: number
   ) {
     return database
       .prepare(
-        `SELECT * FROM ${tableName} ORDER BY rowid DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`
+        `SELECT * FROM ${quoteIdentifier(tableName)} ORDER BY rowid DESC LIMIT ? OFFSET ?`
       )
-      .all()
+      .all(limit, offset)
   }
 }
