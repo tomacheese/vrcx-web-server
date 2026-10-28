@@ -23,7 +23,6 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "experimentalDecorators": true,
-    "skipLibCheck": true,
     "newLine": "LF"
   },
   "include": ["src/**/*"]
