@@ -1,4 +1,4 @@
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:$PATH"
