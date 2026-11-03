@@ -2,7 +2,7 @@
   "extends": ["github>book000/templates//renovate/base-public"],
   "packageRules": [
     {
-      "description": "ランタイム (Dockerfile / .node-version) は Node.js 24 のため @types/node は 24 系に固定する。@types/node 26 では worker_threads.TransferListItem が無くなり、これを参照する thread-stream の型が skipLibCheck 無しではビルドできない。ランタイムを Node.js 26 に上げるとき、または thread-stream の型が worker_threads.TransferListItem を使わなくなったときに解除する。",
+      "description": "Pin @types/node to the 24 series. In @types/node 26, worker_threads.TransferListItem no longer exists, so the thread-stream types that reference it cannot be built without skipLibCheck. The runtime (Dockerfile / .node-version) is already Node.js 26, so only the thread-stream condition remains: remove this rule once thread-stream no longer uses worker_threads.TransferListItem.",
       "matchPackageNames": ["@types/node"],
       "allowedVersions": "<25"
     }

@@ -4,28 +4,29 @@ import DatabaseConstructor from 'better-sqlite3'
 import { ENV } from '../environments'
 
 /**
- * 1 リクエストで取得できるレコード数の上限
+ * Maximum number of records returned per request.
  */
 const MAX_LIMIT = 1000
 
 /**
- * SQL 識別子をダブルクオートで囲み、内部のダブルクオートをエスケープする
+ * Wrap a SQL identifier in double quotes, escaping any embedded double quotes.
  *
- * @param name 識別子（テーブル名）
- * @returns クオート済みの識別子
+ * @param name Identifier (table name)
+ * @returns The quoted identifier
  */
 function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`
 }
 
 /**
- * page と limit から OFFSET 値を算出する
+ * Calculate the OFFSET value from page and limit.
  *
- * スキーマ検証だけでは Infinity が通過するため、ここで安全な整数と範囲を再検証する。
+ * Schema validation alone lets Infinity through, so safe integers and ranges
+ * are validated again here.
  *
- * @param page ページ番号（1 始まり）
- * @param limit 1 ページあたりの件数
- * @returns OFFSET 値。page / limit が不正な場合は null
+ * @param page Page number (1-based)
+ * @param limit Records per page
+ * @returns The OFFSET value, or null if page / limit is invalid
  */
 function calculateOffset(page: number, limit: number): number | null {
   if (!Number.isSafeInteger(page) || !Number.isSafeInteger(limit)) {
@@ -103,8 +104,8 @@ export class ApiRouter extends BaseRouter {
       readonly: true,
     })
 
-    // 早期 return や例外が発生しても接続を確実に閉じるため、
-    // DB を使う処理はすべて try ブロック内で完結させ、応答の送信は finally の後に行う
+    // Keep all DB work inside the try block and send the reply after finally,
+    // so the connection is closed even on early return or exceptions
     let response: unknown
     try {
       response = this.handleRequest(
@@ -121,13 +122,13 @@ export class ApiRouter extends BaseRouter {
   }
 
   /**
-   * リクエストに応じてテーブル一覧またはレコード一覧を取得する。
-   * データベース接続のクローズは呼び出し元が行う。
-   * @param database オープン済みのデータベース接続
-   * @param tableName テーブル名。未指定の場合はテーブル一覧を返す
-   * @param limit 1 ページあたりの件数（検証済み）
-   * @param offset 取得開始位置（検証済み）
-   * @returns 応答として返す値
+   * Return the table list or the records of a table, depending on the request.
+   * The caller is responsible for closing the database connection.
+   * @param database Open database connection
+   * @param tableName Table name. If omitted, the table list is returned
+   * @param limit Records per page (validated)
+   * @param offset Start position (validated)
+   * @returns The value to send as the response
    */
   private handleRequest(
     database: DatabaseConstructor.Database,

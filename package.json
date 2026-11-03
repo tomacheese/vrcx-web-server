@@ -1,7 +1,7 @@
 {
   "name": "vrcx-web-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Web server that exposes the VRCX SQLite database as a read-only API",
   "homepage": "https://github.com/tomacheese/vrcx-web-server",
   "bugs": {
     "url": "https://github.com/tomacheese/vrcx-web-server/issues"

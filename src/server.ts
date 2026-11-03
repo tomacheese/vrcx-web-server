@@ -5,9 +5,9 @@ import { Logger } from '@book000/node-utils'
 import { ApiRouter } from './endpoints/api'
 import { RootRouter } from './endpoints/root'
 /**
- * Fastify アプリケーションを構築する
+ * Build the Fastify application.
  *
- * @returns Fastify アプリケーション
+ * @returns The Fastify application
  */
 export async function buildApp(): Promise<FastifyInstance> {
   const logger = Logger.configure('buildApp')
