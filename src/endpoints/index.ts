@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 
 /**
- * REST API ルーターの基底クラス
+ * Base class for REST API routers.
  */
 export abstract class BaseRouter {
   protected fastify: FastifyInstance
@@ -11,9 +11,7 @@ export abstract class BaseRouter {
   }
 
   /**
-   * ルーターを初期化する
-   *
-   * this.fastify.register() でルーターを登録する
+   * Initialize the router by registering it with `this.fastify.register()`.
    */
   abstract init(): Promise<void>
 }

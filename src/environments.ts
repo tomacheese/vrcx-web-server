@@ -1,4 +1,4 @@
-// 環境変数を一元管理する
+// Manage environment variables in one place
 const defaultEnvironment = {
   API_HOST: '0.0.0.0',
   API_PORT: null,

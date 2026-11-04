@@ -1,26 +1,17 @@
 # GitHub Copilot Instructions
 
-このファイルは GitHub Copilot のコードレビュー向けの指示です。開発作業手順やコマンドの詳細は `CLAUDE.md` を参照してください。
+Review guidance only. Project overview, commands, and safety invariants are in [AGENTS.md](../AGENTS.md); reviews should be written in English.
 
-## プロジェクト概要
-VRCX の SQLite データベースを読み取り専用で公開する Fastify + TypeScript 製 API サーバー。パッケージ管理は pnpm。
+## Review focus
 
-## 強制される規約（レビュー時に確認する）
-- フォーマットは Prettier、Lint は ESLint（`@book000/eslint-config`）で強制される。CI (`pnpm lint`) で Prettier / ESLint / `tsc` が実行される
-- `tsconfig.json` は `strict` 有効。`skipLibCheck` を追加しないこと
-- 関数・インターフェースには日本語の JSDoc を付与する
-- ユーザー向けエラーメッセージは英語、コード内コメントは日本語
-- 日本語と英数字の間には半角スペースを入れる
+- **SQL interpolation**: only table names are interpolated, after matching against names from `sqlite_master` and quoting with `quoteIdentifier`. `page` / `limit` must stay bound parameters validated by the query schema and `calculateOffset` (invalid input returns 400). Check that any new or changed query keeps this.
+- **Read-only**: the database must be opened with `readonly: true`; flag any write operation.
+- **Secrets**: DB paths and credentials come from `ENV` (`src/environments.ts`), and nothing sensitive is logged.
+- **Connection close**: the `better-sqlite3` connection must be closed on every path, including early returns and exceptions.
+- **Static files**: `root.ts` must serve only files in `SERVABLE_FILES`.
+- `tsconfig.json` must not gain `skipLibCheck`.
 
-## 重点的にレビューする点
-- **SQL 文字列補間**: `api.ts` はテーブル名のみを SQL に文字列補間している（`quoteIdentifier` でクオート済み）。これは `tableName` を `sqlite_master` から取得した実在テーブル名リストと照合してからのみ許可することで安全性を担保している。`page` / `limit` は SQL に補間せず、`LIMIT ? OFFSET ?` として整数をバインドする。値はクエリスキーマと `calculateOffset` で検証する（`limit` は `MAX_LIMIT` 以下、安全な整数のみ、不正なら 400）。クエリを変更・追加する場合、この照合・クオート・バインド・検証が維持されているかを確認する
-- **読み取り専用**: データベースは必ず `readonly: true` でオープンする。書き込み操作が入っていないか確認する
-- **機密情報**: DB パス・認証情報をコードに直接記述せず `src/environments.ts` の `ENV` 経由で取得しているか確認する。ログに機密情報を出力していないか確認する
-- **接続クローズ**: `better-sqlite3` の接続が早期 return パスでも適切に close されるか確認する
+## Known patterns not to flag
 
-## フラグすべきでない既知パターン
-- 上記テーブル名の SQL 文字列補間は、実在テーブル名との照合とクオートが伴っている限り脆弱性ではない。照合・クオートを伴う補間そのものを一律で指摘しない
-- テストコードが存在しないこと自体は既知の状態（現状テスト未実装）。テスト不足の一般的な指摘のみを目的としたコメントは不要
-
-## テスト方針
-現在テストは未実装。追加する場合は Vitest 等を検討する。
+- Table-name interpolation that is matched against real table names and quoted is not a vulnerability.
+- The absence of tests is a known state; do not leave comments that only point out missing tests.

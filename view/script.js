@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-this-outside-of-class --
-   Vue Options API コンポーネントでは `this` バインディングが Vue ランタイムによって解決されるため、
-   ESLint の静的解析では認識できない。クラスベースや Composition API への大規模リファクタリングを
-   回避するため、ファイル全体で無効化する。
+   In a Vue Options API component, the `this` binding is resolved by the Vue runtime,
+   so ESLint static analysis cannot recognize it. Disabled for the whole file to avoid
+   a large refactor to classes or the Composition API.
 */
 /* global Vue, Vuetify */
 
@@ -329,7 +329,6 @@ const app = createApp({
         })
       }
     },
-    // fetchPortalSpawnLog: ログみたことがなくてわからない
     async fetchVideoPlayLog(page = 1, limit = 1000) {
       const type = 'video_play'
       const path = `/api/gamelog_${type}`
@@ -350,7 +349,6 @@ const app = createApp({
         })
       }
     },
-    // fetchResourceLoadLog: ログみたことがなくてわからない
     async fetchEventLog(page = 1, limit = 1000) {
       const type = 'event'
       const path = `/api/gamelog_${type}`
@@ -371,7 +369,7 @@ const app = createApp({
         })
       }
     },
-    // fetchExternalLog: ログみたことがなくてわからない
+    // Not implemented: fetchPortalSpawnLog, fetchResourceLoadLog, fetchExternalLog (log format unknown)
     getWorldName(item) {
       if (item.world_name) {
         return item.world_name

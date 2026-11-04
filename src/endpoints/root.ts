@@ -3,10 +3,10 @@ import { BaseRouter } from '.'
 import { promises } from 'node:fs'
 
 /**
- * 配信を許可するファイルと Content-Type の対応
+ * Allowlist of servable files and their Content-Type.
  *
- * 任意のパス指定による view ディレクトリ外の読み取りを防ぐため、
- * ここに列挙したファイル以外は配信しない。
+ * Files not listed here are never served, which prevents reading outside the
+ * view directory through an arbitrary path.
  */
 const SERVABLE_FILES: ReadonlyMap<string, string> = new Map([
   ['index.html', 'text/html'],
@@ -32,7 +32,7 @@ export class RootRouter extends BaseRouter {
     }>,
     reply: FastifyReply
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- 空白の場合でもデフォルト値を使う
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- use the default value even when the path is empty
     const path = request.params.path || 'index.html'
     const contentType = SERVABLE_FILES.get(path)
 
