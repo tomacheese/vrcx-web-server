@@ -179,8 +179,8 @@ importers:
         specifier: 1.16.124
         version: 1.16.124(eslint@10.15.0)(typescript@5.9.3)
       '@book000/node-utils':
-        specifier: 1.26.27
-        version: 1.26.27
+        specifier: 1.26.29
+        version: 1.26.29
       '@fastify/cors':
         specifier: 11.4.3
         version: 11.4.3
@@ -231,8 +231,8 @@ packages:
     peerDependencies:
       eslint: 10.14.0
 
-  '@book000/node-utils@1.26.27':
-    resolution: {integrity: sha512-UKZaUX642Q8eOMFav6n9Usqg53RN+KIpCqP/k+5xCc4e6Zrb5IAxuWKvASi6em8qFKbAA2oBXU51lE1oSo8exw==}
+  '@book000/node-utils@1.26.29':
+    resolution: {integrity: sha512-o7O9XIu9gSRMAD3D7Nn9PUXfuV53S9aQhnHeQrli1l4UhBaHnN13X2HDD2zKxe7yfccAnoA7VzRWbvsmyat82w==}
 
   '@cacheable/memory@2.2.0':
     resolution: {integrity: sha512-CTLKqLItRCEixEAewD3/j9DB3/o96gpTPD4eJ1v+DGOlxZRZncRQkGYqqnAGCscYd6RNeXfGeiuCphsPtqyIfQ==}
@@ -2263,7 +2263,7 @@ snapshots:
       - ts-declaration-location
       - typescript
 
-  '@book000/node-utils@1.26.27':
+  '@book000/node-utils@1.26.29':
     dependencies:
       '@sentry/node': 11.12.0
       cycle: 1.0.3
